@@ -22,6 +22,7 @@ import {
   groupTransactionsByDate,
   exportToCSV } from
 '../utils/helpers';
+import { formatDistanceToNow } from 'date-fns';
 import { Transaction, MonthlyBudget } from '../types';
 import {
   PieChart,
@@ -44,6 +45,7 @@ interface DashboardProps {
   recentTransactions: Transaction[];
   onAddExpense: () => void;
   onViewAll: () => void;
+  onViewInsights?: () => void;
   onEdit: (t: Transaction) => void;
   onDelete: (id: string) => void;
   allTransactions: Transaction[];
@@ -57,12 +59,14 @@ export function Dashboard({
   recentTransactions,
   onAddExpense,
   onViewAll,
+  onViewInsights,
   onEdit,
   onDelete,
   allTransactions,
   allBudgets,
   currentMonth
 }: DashboardProps) {
+
   const spentPercentage = totalBudget > 0 ? totalSpent / totalBudget * 100 : 0;
   const isNearLimit = spentPercentage > 85;
   const isOverLimit = spentPercentage >= 100;
@@ -335,7 +339,11 @@ export function Dashboard({
                     <div className="flex items-center text-xs text-slate-500 space-x-2">
                       <span>{t.category}</span>
                       <span>•</span>
-                      <span>{formatDate(t.date)}</span>
+                      <span>
+                        {t.createdAt?.seconds 
+                          ? formatDistanceToNow(t.createdAt.seconds * 1000, { addSuffix: true }) 
+                          : formatDate(t.date)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -455,11 +463,15 @@ export function Dashboard({
         </Card>
       </div>
 
-      {/* Smart Insights */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Smart Insights</CardTitle>
+          <Button variant="ghost" size="sm" onClick={onViewInsights}>
+            View Detailed Insights
+          </Button>
+
         </CardHeader>
+
         <CardContent>
           <SmartInsights
             allTransactions={allTransactions}

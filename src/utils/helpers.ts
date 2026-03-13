@@ -134,11 +134,42 @@ export const exportToCSV = (transactions: Transaction[], filename: string) => {
   document.body.removeChild(link);
 };
 
-export const parseCSV = (csvText: string): Omit<Transaction, 'id' | 'createdAt'>[] => {
+const normalizeDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  
+  // Try to parse YYYY-MM-DD (standard)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  
+  // Try to parse DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmyMatch) {
+    const [_, day, month, year] = dmyMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // Try to parse MM/DD/YYYY or MM-DD-YYYY (US format)
+  // This is ambiguous with DMY, but we can try to guess or just use JS Date as fallback
+  
+  // Fallback to JS Date parsing
+  const date = new Date(dateStr);
+  if (!isNaN(date.getTime())) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  
+  return dateStr; // Return as is if all fails
+};
+
+export const parseCSV = (csvText: string): Omit<Transaction, 'id' | 'createdAt' | 'userId'>[] => {
   const lines = csvText.split(/\r?\n/);
+  console.log('CSV Parsing - Total lines:', lines.length);
+  
   if (lines.length < 2) return [];
 
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  console.log('CSV Parsing - Headers:', headers);
   
   // Find indices of important columns
   const dateIdx = headers.findIndex(h => h.includes('date'));
@@ -146,47 +177,80 @@ export const parseCSV = (csvText: string): Omit<Transaction, 'id' | 'createdAt'>
   const categoryIdx = headers.findIndex(h => h.includes('category'));
   const amountIdx = headers.findIndex(h => h.includes('amount') || h.includes('value'));
   const notesIdx = headers.findIndex(h => h.includes('notes') || h.includes('comment'));
-
+  
+  console.log('CSV Parsing - Column indices:', { dateIdx, titleIdx, categoryIdx, amountIdx, notesIdx });
+  
   if (dateIdx === -1 || amountIdx === -1 || titleIdx === -1) {
-    throw new Error('CSV must contain at least Date, Title/Description, and Amount columns.');
+    throw new Error('CSV must contain at least Date, Title, and Amount columns.');
   }
 
-  const transactions: Omit<Transaction, 'id' | 'createdAt'>[] = [];
+  const transactions: Omit<Transaction, 'id' | 'createdAt' | 'userId'>[] = [];
+  let skippedLines = 0;
+  let processedLines = 0;
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line) continue;
+    if (!line) {
+      skippedLines++;
+      continue;
+    }
 
-    // Simple split by comma, respecting quotes
-    const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+    // Better CSV parsing that handles quoted fields properly
+    const values: string[] = [];
+    let currentValue = '';
+    let inQuotes = false;
     
-    if (values.length < 3) continue;
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+      
+      if (char === '"') {
+        if (inQuotes && line[j + 1] === '"') {
+          currentValue += '"';
+          j++; // Skip next quote
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        values.push(currentValue.trim());
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+    
+    // Add the last value
+    values.push(currentValue.trim());
+    
+    if (values.length < 3) {
+      skippedLines++;
+      continue;
+    }
 
     const clean = (val: string) => val ? val.replace(/^"|"$/g, '').trim() : '';
 
-    const dateStr = clean(values[dateIdx]);
+    const rawDateStr = clean(values[dateIdx]);
+    const dateStr = normalizeDate(rawDateStr);
     const title = clean(values[titleIdx]);
-    const category = categoryIdx !== -1 ? clean(values[categoryIdx]) : 'Miscellaneous';
-    const amount = parseFloat(clean(values[amountIdx]).replace(/[^\d.-]/g, ''));
+    const category = categoryIdx !== -1 && values[categoryIdx] ? clean(values[categoryIdx]) : 'Miscellaneous';
+    const amountVal = clean(values[amountIdx]).replace(/[^\d.-]/g, '');
+    const amount = parseFloat(amountVal);
     const notes = notesIdx !== -1 ? clean(values[notesIdx]) : '';
 
     if (dateStr && title && !isNaN(amount)) {
-      // Basic date validation/conversion if needed
-      // Assuming YYYY-MM-DD or similar that Date can parse
-      const dateObj = new Date(dateStr);
-      const formattedDate = !isNaN(dateObj.getTime()) 
-        ? dateObj.toISOString().split('T')[0] 
-        : new Date().toISOString().split('T')[0];
-
       transactions.push({
-        date: formattedDate,
-        title,
+        date: dateStr,
+        title: title || 'Untitled Expense',
         category: category as any,
         amount,
-        notes: notes || undefined
+        notes: notes || ''
       });
+      processedLines++;
+    } else {
+      console.warn('Skipping invalid CSV line:', line, { dateStr, title, amount });
+      skippedLines++;
     }
   }
 
+  console.log(`CSV Parsing - Finished: ${processedLines} processed, ${skippedLines} skipped`);
   return transactions;
 };

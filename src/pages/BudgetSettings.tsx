@@ -1,187 +1,179 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { useState } from 'react';
+import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { 
+  SettingsIcon, 
+  PlusIcon, 
+  Trash2Icon, 
+  HistoryIcon, 
+  TargetIcon,
+  TagIcon,
+  CheckCircle2Icon
+} from 'lucide-react';
+import { formatCurrency, formatDate } from '../utils/helpers';
 import { MonthlyBudget } from '../types';
-import { formatCurrency, formatDate, getMonthName } from '../utils/helpers';
-import { SettingsIcon, HistoryIcon, AlertTriangleIcon } from 'lucide-react';
+
 interface BudgetSettingsProps {
   currentMonth: string;
-  currentBudget: number;
-  totalSpent: number;
-  budgetData?: MonthlyBudget;
-  onUpdateBudget: (month: string, amount: number, reason?: string) => void;
+  monthlyBudget: MonthlyBudget | null;
+  customCategories: string[];
+  onUpdateBudget: (month: string, amount: number) => void;
+  onAddCategory: (name: string) => void;
+  onDeleteCategory?: (name: string) => void;
 }
-export function BudgetSettings({
-  currentMonth,
-  currentBudget,
-  totalSpent,
-  budgetData,
-  onUpdateBudget
+
+export function BudgetSettings({ 
+  currentMonth, 
+  monthlyBudget, 
+  customCategories,
+  onUpdateBudget,
+  onAddCategory
 }: BudgetSettingsProps) {
-  const [newBudget, setNewBudget] = useState(
-    currentBudget ? currentBudget.toString() : ''
-  );
-  const [reason, setReason] = useState('');
-  const [error, setError] = useState('');
-  const handleUpdate = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amount = Number(newBudget);
-    if (!amount || isNaN(amount) || amount <= 0) {
-      setError('Please enter a valid positive amount');
-      return;
+  const [newBudget, setNewBudget] = useState(monthlyBudget?.totalBudget.toString() || '0');
+  const [newCategory, setNewCategory] = useState('');
+
+  const handleUpdateBudget = () => {
+    const amount = parseFloat(newBudget);
+    if (!isNaN(amount) && amount >= 0) {
+      onUpdateBudget(currentMonth, amount);
     }
-    if (amount < totalSpent) {
-      if (
-      !window.confirm(
-        `Warning: The new budget (${formatCurrency(amount)}) is less than what you've already spent (${formatCurrency(totalSpent)}). Are you sure?`
-      ))
-      {
-        return;
-      }
-    }
-    onUpdateBudget(currentMonth, amount, reason.trim() || undefined);
-    setReason('');
-    setError('');
-    // Show success state briefly or just let UI update
   };
-  const remaining = currentBudget - totalSpent;
+
+  const handleAddCategory = () => {
+    if (newCategory.trim()) {
+      onAddCategory(newCategory.trim());
+      setNewCategory('');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Budget Settings</h1>
-        <p className="text-slate-500">
-          Manage your budget for {getMonthName(currentMonth)}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Budget Settings</h1>
+          <p className="text-slate-500">Control your spending limits and categories</p>
+        </div>
+        <div className="bg-white p-2 px-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+          <SettingsIcon className="w-4 h-4 text-indigo-600" />
+          <span className="font-bold text-slate-700">Settings</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <SettingsIcon className="w-5 h-5 mr-2 text-slate-500" />
-              Set Monthly Budget
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-slate-50 p-4 rounded-lg mb-6 flex justify-between items-center border border-slate-100">
-              <div>
-                <p className="text-sm text-slate-500">Current Budget</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {formatCurrency(currentBudget)}
-                </p>
+        <div className="space-y-6">
+          <Card className="overflow-hidden border-none shadow-md">
+            <div className="bg-indigo-600 p-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                <TargetIcon className="w-5 h-5 text-indigo-200" />
+                <h3 className="font-bold">Monthly Budget</h3>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-slate-500">Remaining</p>
-                <p
-                  className={`text-xl font-bold ${remaining < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-
-                  {formatCurrency(remaining)}
-                </p>
-              </div>
+              <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">{currentMonth}</span>
             </div>
-
-            <form onSubmit={handleUpdate} className="space-y-4">
-              <Input
-                label="New Budget Amount (₹)"
-                type="number"
-                step="100"
-                min="0"
-                placeholder="e.g., 10000"
-                value={newBudget}
-                onChange={(e) => {
-                  setNewBudget(e.target.value);
-                  setError('');
-                }}
-                error={error} />
-
-
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">
-                  Reason for change (Optional)
-                </label>
-                <input
-                  type="text"
-                  className="block w-full rounded-lg border-slate-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  placeholder="e.g., Received extra allowance"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)} />
-
-              </div>
-
-              {Number(newBudget) > 0 && Number(newBudget) < totalSpent &&
-              <div className="p-3 bg-amber-50 text-amber-800 rounded-lg flex items-start space-x-2 text-sm border border-amber-200">
-                  <AlertTriangleIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <p>
-                    Warning: This budget is lower than your current expenses.
-                    Your remaining balance will be negative.
-                  </p>
+            <CardContent className="p-6">
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Setting a monthly budget helps you stay financially disciplined and achieve your savings goals faster.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Budget Amount (₹)</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="e.g. 50000"
+                      value={newBudget}
+                      onChange={(e) => setNewBudget(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button onClick={handleUpdateBudget}>Update</Button>
+                  </div>
                 </div>
-              }
-
-              <Button type="submit" className="w-full">
-                {currentBudget === 0 ? 'Set Initial Budget' : 'Update Budget'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <HistoryIcon className="w-5 h-5 mr-2 text-slate-500" />
-              Adjustment History
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {budgetData?.history && budgetData.history.length > 0 ?
-            <div className="divide-y divide-slate-100">
-                {/* Sort history descending by date */}
-                {[...budgetData.history].reverse().map((entry, idx) => {
-                const isIncrease = entry.newBudget > entry.previousBudget;
-                const diff = Math.abs(entry.newBudget - entry.previousBudget);
-                return (
-                  <div
-                    key={idx}
-                    className="p-4 hover:bg-slate-50 transition-colors">
-
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-sm text-slate-500">
-                          {formatDate(entry.date)}
-                        </span>
-                        <span
-                        className={`text-sm font-medium ${isIncrease ? 'text-emerald-600' : 'text-rose-600'}`}>
-
-                          {isIncrease ? '+' : '-'}
-                          {formatCurrency(diff)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 text-slate-900 font-medium">
-                          <span className="text-slate-400 line-through text-sm">
-                            {formatCurrency(entry.previousBudget)}
-                          </span>
-                          <span>→</span>
-                          <span>{formatCurrency(entry.newBudget)}</span>
-                        </div>
-                      </div>
-                      {entry.reason &&
-                    <p className="text-sm text-slate-600 mt-2 bg-slate-100 p-2 rounded-md inline-block">
-                          "{entry.reason}"
-                        </p>
-                    }
-                    </div>);
-
-              })}
-              </div> :
-
-            <div className="p-8 text-center text-slate-500">
-                <p>No budget adjustments recorded for this month.</p>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                  <span className="text-sm text-slate-600">Current active budget:</span>
+                  <span className="text-lg font-bold text-indigo-700">{formatCurrency(monthlyBudget?.totalBudget || 0)}</span>
+                </div>
               </div>
-            }
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <div className="p-4 border-b border-slate-100 flex items-center gap-2">
+              <TagIcon className="w-5 h-5 text-indigo-600" />
+              <h3 className="font-bold text-slate-900">Custom Categories</h3>
+            </div>
+            <CardContent className="p-6">
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Add unique categories to better organize and track your personal spending habits.
+              </p>
+              <div className="flex gap-2 mb-6">
+                <Input
+                  placeholder="New category name"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  className="flex-1"
+                />
+                <Button variant="secondary" onClick={handleAddCategory}>
+                  <PlusIcon className="w-4 h-4 mr-2" />
+                  Add
+                </Button>
+              </div>
+              <div className="space-y-2">
+               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Active Categories</h4>
+               <div className="flex flex-wrap gap-2">
+                 {['Room Rent', 'Food', 'Dress', 'Travel', 'Essentials', 'Miscellaneous'].map(c => (
+                   <div key={c} className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 flex items-center gap-2 text-sm text-slate-600">
+                     <CheckCircle2Icon className="w-3 h-3 text-emerald-500" />
+                     {c}
+                   </div>
+                 ))}
+                 {customCategories.map(c => (
+                   <div key={c} className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-2 text-sm text-indigo-700 font-medium group">
+                     {c}
+                     <button className="text-indigo-300 hover:text-rose-500 transition-colors">
+                       <Trash2Icon className="w-3 h-3" />
+                     </button>
+                   </div>
+                 ))}
+               </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="shadow-sm h-full">
+          <div className="p-4 border-b border-slate-100 flex items-center gap-2">
+            <HistoryIcon className="w-5 h-5 text-indigo-600" />
+            <h3 className="font-bold text-slate-900">Budget Change History</h3>
+          </div>
+          <CardContent className="p-0">
+            {monthlyBudget?.history && monthlyBudget.history.length > 0 ? (
+              <div className="divide-y divide-slate-100">
+                {monthlyBudget.history.slice().reverse().map((entry, idx) => (
+                  <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-slate-400">{formatDate(entry.date)}</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${entry.newBudget > entry.previousBudget ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {entry.newBudget > entry.previousBudget ? 'Increased' : 'Decreased'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm line-through text-slate-400">{formatCurrency(entry.previousBudget)}</span>
+                        <span className="text-sm font-bold text-slate-900">→ {formatCurrency(entry.newBudget)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-12 text-center text-slate-500">
+                <HistoryIcon className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                <p>No budget change history recorded yet.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
-    </div>);
-
+    </div>
+  );
 }

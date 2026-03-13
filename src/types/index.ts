@@ -14,8 +14,10 @@ export interface Transaction {
   category: Category;
   date: string; // YYYY-MM-DD
   notes?: string;
-  createdAt: number;
-  isRecurring?: boolean; // Flag for auto-generated recurring transactions
+  createdAt: any; // Firestore Timestamp
+  updatedAt?: any; // Firestore Timestamp
+  userId: string;
+  isRecurring?: boolean;
 }
 
 export interface BudgetAdjustment {

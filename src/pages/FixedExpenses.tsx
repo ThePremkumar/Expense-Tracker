@@ -43,7 +43,7 @@ export function FixedExpenses({
   // Form state
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<Category>('');
+  const [category, setCategory] = useState<Category>(categories[0] || '');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const activeExpenses = recurringExpenses.filter((r) => r.isActive);
@@ -52,7 +52,7 @@ export function FixedExpenses({
     setEditingExpense(null);
     setTitle('');
     setAmount('');
-    setCategory('');
+    setCategory(categories[0] || '');
     setNotes('');
     setErrors({});
     setIsModalOpen(true);
