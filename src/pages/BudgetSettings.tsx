@@ -28,7 +28,8 @@ export function BudgetSettings({
   monthlyBudget, 
   customCategories,
   onUpdateBudget,
-  onAddCategory
+  onAddCategory,
+  onDeleteCategory
 }: BudgetSettingsProps) {
   const [newBudget, setNewBudget] = useState(monthlyBudget?.totalBudget.toString() || '0');
   const [newCategory, setNewCategory] = useState('');
@@ -47,14 +48,16 @@ export function BudgetSettings({
     }
   };
 
+  const defaultCategories = ['Room Rent', 'Food', 'Dress', 'Travel', 'Essentials', 'Miscellaneous'];
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Budget Settings</h1>
-          <p className="text-slate-500">Control your spending limits and categories</p>
+          <p className="text-slate-500 text-sm">Control your spending limits and categories</p>
         </div>
-        <div className="bg-white p-2 px-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+        <div className="bg-white p-2 px-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2 self-start sm:self-auto">
           <SettingsIcon className="w-4 h-4 text-indigo-600" />
           <span className="font-bold text-slate-700">Settings</span>
         </div>
@@ -63,12 +66,12 @@ export function BudgetSettings({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
           <Card className="overflow-hidden border-none shadow-md">
-            <div className="bg-indigo-600 p-4 flex items-center justify-between text-white">
+            <div className="bg-indigo-600 p-4 flex flex-col sm:flex-row sm:items-center justify-between text-white gap-2">
               <div className="flex items-center gap-2">
                 <TargetIcon className="w-5 h-5 text-indigo-200" />
                 <h3 className="font-bold">Monthly Budget</h3>
               </div>
-              <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">{currentMonth}</span>
+              <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full w-fit">{currentMonth}</span>
             </div>
             <CardContent className="p-6">
               <p className="text-sm text-slate-500 mb-6 leading-relaxed">
@@ -114,13 +117,13 @@ export function BudgetSettings({
                 />
                 <Button variant="secondary" onClick={handleAddCategory}>
                   <PlusIcon className="w-4 h-4 mr-2" />
-                  Add
+                  <span className="hidden xs:inline">Add</span>
                 </Button>
               </div>
               <div className="space-y-2">
                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Active Categories</h4>
                <div className="flex flex-wrap gap-2">
-                 {['Room Rent', 'Food', 'Dress', 'Travel', 'Essentials', 'Miscellaneous'].map(c => (
+                 {defaultCategories.map(c => (
                    <div key={c} className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 flex items-center gap-2 text-sm text-slate-600">
                      <CheckCircle2Icon className="w-3 h-3 text-emerald-500" />
                      {c}
@@ -129,7 +132,10 @@ export function BudgetSettings({
                  {customCategories.map(c => (
                    <div key={c} className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-2 text-sm text-indigo-700 font-medium group">
                      {c}
-                     <button className="text-indigo-300 hover:text-rose-500 transition-colors">
+                     <button 
+                       onClick={() => onDeleteCategory?.(c)}
+                       className="text-indigo-300 hover:text-rose-500 transition-colors"
+                     >
                        <Trash2Icon className="w-3 h-3" />
                      </button>
                    </div>
@@ -139,6 +145,7 @@ export function BudgetSettings({
             </CardContent>
           </Card>
         </div>
+
 
         <Card className="shadow-sm h-full">
           <div className="p-4 border-b border-slate-100 flex items-center gap-2">

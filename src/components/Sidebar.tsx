@@ -8,7 +8,8 @@ import {
   BarChart3Icon,
   LightbulbIcon,
   LogOutIcon,
-  WalletIcon
+  WalletIcon,
+  XIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -17,9 +18,11 @@ import toast from 'react-hot-toast';
 interface SidebarProps {
   currentTab: string;
   onTabChange: (tab: any) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ currentTab, onTabChange }: SidebarProps) {
+export function Sidebar({ currentTab, onTabChange, isOpen, onClose }: SidebarProps) {
   const { logout, currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -43,23 +46,36 @@ export function Sidebar({ currentTab, onTabChange }: SidebarProps) {
     }
   };
 
-  return (
-    <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200">
-      <div className="p-6 flex items-center gap-3 text-indigo-600">
-        <div className="bg-indigo-100 p-2 rounded-lg">
-          <WalletIcon className="w-6 h-6" />
+  const handleTabClick = (id: string) => {
+    onTabChange(id);
+    if (onClose) onClose();
+  };
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-white border-r border-slate-200">
+      <div className="p-6 flex items-center justify-between text-indigo-600">
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-100 p-2 rounded-lg">
+            <WalletIcon className="w-6 h-6" />
+          </div>
+          <span className="font-bold text-xl text-slate-900">Tracker</span>
         </div>
-        <span className="font-bold text-xl text-slate-900">Tracker</span>
+        <button 
+          onClick={onClose}
+          className="md:hidden p-2 -mr-2 text-slate-400 hover:text-slate-600"
+        >
+          <XIcon className="w-5 h-5" />
+        </button>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-1">
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
           return (
             <button
               key={item.id}
-              onClick={() => onTabChange(item.id)}
+              onClick={() => handleTabClick(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 isActive 
                 ? 'bg-indigo-50 text-indigo-700 font-medium' 
@@ -95,6 +111,31 @@ export function Sidebar({ currentTab, onTabChange }: SidebarProps) {
           Sign Out
         </button>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile Drawer Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-300"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Mobile Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 w-64 z-50 md:hidden transform transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 flex-shrink-0">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }
+

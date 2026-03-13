@@ -1,17 +1,30 @@
 
-import { CalendarIcon, BellIcon, SearchIcon } from 'lucide-react';
+import { CalendarIcon, BellIcon, SearchIcon, MenuIcon, WalletIcon } from 'lucide-react';
 import { getMonthName } from '../utils/helpers';
 
 interface TopBarProps {
   currentMonth: string;
   onMonthChange: (month: string) => void;
   availableMonths: string[];
+  onMenuClick?: () => void;
 }
 
-export function TopBar({ currentMonth, onMonthChange, availableMonths }: TopBarProps) {
+export function TopBar({ currentMonth, onMonthChange, availableMonths, onMenuClick }: TopBarProps) {
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-10">
+    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-10">
       <div className="flex items-center gap-4 flex-1">
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          <MenuIcon className="w-6 h-6" />
+        </button>
+        
+        <div className="flex items-center gap-2 md:hidden text-indigo-600">
+           <WalletIcon className="w-5 h-5" />
+           <span className="font-bold text-lg text-slate-900">Tracker</span>
+        </div>
+
         <div className="relative max-w-xs w-full hidden sm:block">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input 
@@ -22,13 +35,13 @@ export function TopBar({ currentMonth, onMonthChange, availableMonths }: TopBarP
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-          <CalendarIcon className="w-4 h-4 text-slate-500" />
+      <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-2 bg-slate-50 px-2 md:px-3 py-1.5 rounded-lg border border-slate-200">
+          <CalendarIcon className="w-4 h-4 text-slate-500 hidden xs:block" />
           <select
             value={currentMonth}
             onChange={(e) => onMonthChange(e.target.value)}
-            className="bg-transparent border-none text-sm font-semibold text-slate-800 focus:ring-0 p-0 cursor-pointer"
+            className="bg-transparent border-none text-xs md:text-sm font-semibold text-slate-800 focus:ring-0 p-0 cursor-pointer"
           >
             {availableMonths.map((m) => (
               <option key={m} value={m}>
@@ -46,3 +59,4 @@ export function TopBar({ currentMonth, onMonthChange, availableMonths }: TopBarP
     </header>
   );
 }
+

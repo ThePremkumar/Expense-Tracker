@@ -63,25 +63,8 @@ export function useExpenseTracker() {
     const userDoc = await getDoc(userDocRef);
     
     if (!userDoc.exists()) {
-      // First time initialization
-      const samples = [
-        { title: 'Breakfast', category: 'Food', amount: 40, date: new Date().toISOString().split('T')[0] },
-        { title: 'Bus ticket', category: 'Travel', amount: 15, date: new Date().toISOString().split('T')[0] },
-        { title: 'Tea', category: 'Food', amount: 10, date: new Date().toISOString().split('T')[0] },
-        { title: 'Notes', category: 'Essentials', amount: 20, date: new Date().toISOString().split('T')[0] },
-        { title: 'Internet Recharge', category: 'Miscellaneous', amount: 199, date: new Date().toISOString().split('T')[0] },
-      ];
-
+      // First time initialization - Keep it empty
       const batch = writeBatch(db);
-      samples.forEach(s => {
-        const ref = doc(collection(db, "expenses"));
-        batch.set(ref, {
-          ...s,
-          userId: currentUser.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      });
       
       batch.set(userDocRef, {
         customCategories: [],
@@ -195,27 +178,24 @@ export function useExpenseTracker() {
     const unsubSettings = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        const updatedState = {
-          ...state,
+        setState(prev => ({
+          ...prev,
           budgets: data.budgets || {},
           customCategories: data.customCategories || [],
           recurringExpenses: data.recurringExpenses || [],
           appliedRecurringMonths: data.appliedRecurringMonths || []
-        };
-        
-        setState(updatedState);
+        }));
         
         if (DEV_MODE) {
-          localStorage.setItem('budgets', JSON.stringify(updatedState.budgets));
-          localStorage.setItem('customCategories', JSON.stringify(updatedState.customCategories));
-          localStorage.setItem('recurringExpenses', JSON.stringify(updatedState.recurringExpenses));
-          localStorage.setItem('appliedRecurringMonths', JSON.stringify(updatedState.appliedRecurringMonths));
+          localStorage.setItem('budgets', JSON.stringify(data.budgets || {}));
+          localStorage.setItem('customCategories', JSON.stringify(data.customCategories || []));
+          localStorage.setItem('recurringExpenses', JSON.stringify(data.recurringExpenses || []));
+          localStorage.setItem('appliedRecurringMonths', JSON.stringify(data.appliedRecurringMonths || []));
         }
       }
     }, (error) => {
       if (error.code === 'permission-denied' && DEV_MODE) {
         console.warn("Settings permission denied. Using local storage fallback.");
-        // Settings already loaded above in DEV_MODE
       }
     });
 

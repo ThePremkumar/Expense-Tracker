@@ -49,6 +49,7 @@ function AppContent() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'transactions' | 'reports' | 'fixed' | 'yearly' | 'insights' | 'settings'>('dashboard');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleOpenAddModal = () => {
     setEditingTransaction(null);
@@ -79,16 +80,23 @@ function AppContent() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <Sidebar currentTab={currentTab} onTabChange={setCurrentTab} />
+      <Sidebar 
+        currentTab={currentTab} 
+        onTabChange={setCurrentTab} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <TopBar 
           currentMonth={currentMonth} 
           onMonthChange={setCurrentMonth}
           availableMonths={availableMonths}
+          onMenuClick={() => setIsSidebarOpen(true)}
         />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+
           {currentTab === 'dashboard' && (
             <Dashboard
               totalBudget={currentBudget}
