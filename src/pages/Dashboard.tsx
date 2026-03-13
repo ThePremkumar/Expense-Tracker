@@ -340,7 +340,7 @@ export function Dashboard({
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center space-x-1 transition-opacity">
                     <button
                       onClick={() => onEdit(t)}
                       className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
