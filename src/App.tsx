@@ -105,6 +105,8 @@ export function App() {
           recentTransactions={currentMonthTransactions}
           onAddExpense={handleOpenAddModal}
           onViewAll={() => setCurrentTab('transactions')}
+          onEdit={handleOpenEditModal}
+          onDelete={deleteTransaction}
           allTransactions={state.transactions}
           allBudgets={state.budgets}
           currentMonth={currentMonth} />

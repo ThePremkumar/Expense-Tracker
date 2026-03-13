@@ -8,9 +8,10 @@ import {
   SearchIcon,
   Edit2Icon,
   Trash2Icon,
-  FilterIcon } from
+  FilterIcon,
+  DownloadIcon } from
 'lucide-react';
-import { formatCurrency, formatDate, getCategoryColor } from '../utils/helpers';
+import { formatCurrency, formatDate, getCategoryColor, exportToCSV } from '../utils/helpers';
 import { Transaction, Category } from '../types';
 interface TransactionsProps {
   transactions: Transaction[];
@@ -28,6 +29,12 @@ export function Transactions({
 }: TransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+
+  const handleExport = () => {
+    const filename = `expenses-${new Date().toISOString().split('T')[0]}.csv`;
+    exportToCSV(filteredTransactions, filename);
+  };
+
   const filteredTransactions = transactions.filter((t) => {
     const matchesSearch =
     t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -44,11 +51,18 @@ export function Transactions({
           <h1 className="text-2xl font-bold text-slate-900">Transactions</h1>
           <p className="text-slate-500">Manage your income and expenses</p>
         </div>
-        <Button onClick={onAdd} className="shadow-sm">
-          <PlusIcon className="w-4 h-4 mr-2" />
-          Add Expense
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={handleExport} className="shadow-sm">
+            <DownloadIcon className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={onAdd} className="shadow-sm">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Add Expense
+          </Button>
+        </div>
       </div>
+
 
       <Card>
         <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row gap-4">

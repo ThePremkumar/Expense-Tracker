@@ -9,14 +9,18 @@ import {
   WalletIcon,
   ReceiptIcon,
   PieChartIcon,
-  CalendarIcon } from
+  CalendarIcon,
+  Edit2Icon,
+  Trash2Icon,
+  DownloadIcon } from
 'lucide-react';
 import {
   formatCurrency,
   formatDate,
   getCategoryColor,
   groupTransactionsByCategory,
-  groupTransactionsByDate } from
+  groupTransactionsByDate,
+  exportToCSV } from
 '../utils/helpers';
 import { Transaction, MonthlyBudget } from '../types';
 import {
@@ -40,6 +44,8 @@ interface DashboardProps {
   recentTransactions: Transaction[];
   onAddExpense: () => void;
   onViewAll: () => void;
+  onEdit: (t: Transaction) => void;
+  onDelete: (id: string) => void;
   allTransactions: Transaction[];
   allBudgets: Record<string, MonthlyBudget>;
   currentMonth: string;
@@ -51,6 +57,8 @@ export function Dashboard({
   recentTransactions,
   onAddExpense,
   onViewAll,
+  onEdit,
+  onDelete,
   allTransactions,
   allBudgets,
   currentMonth
@@ -59,6 +67,12 @@ export function Dashboard({
   const isNearLimit = spentPercentage > 85;
   const isOverLimit = spentPercentage >= 100;
   const categoryData = groupTransactionsByCategory(recentTransactions);
+
+  const handleExport = () => {
+    const filename = `expenses-${currentMonth}.csv`;
+    exportToCSV(recentTransactions, filename);
+  };
+  
   // Today's spending
   const today = new Date().toISOString().split('T')[0];
   const todaySpent = useMemo(() => {
@@ -85,11 +99,18 @@ export function Dashboard({
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-slate-500">Overview of your monthly spending</p>
         </div>
-        <Button onClick={onAddExpense} className="shadow-sm">
-          <PlusIcon className="w-4 h-4 mr-2" />
-          Add Expense
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={handleExport} className="shadow-sm">
+            <DownloadIcon className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={onAddExpense} className="shadow-sm">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Add Expense
+          </Button>
+        </div>
       </div>
+
 
       {/* Alert for near/over budget */}
       {(isNearLimit || isOverLimit) && totalBudget > 0 &&
@@ -300,30 +321,48 @@ export function Dashboard({
                 {recentTransactions.slice(0, 5).map((t) =>
               <div
                 key={t.id}
-                className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-
-                    <div className="flex items-center space-x-4">
-                      <div
+                className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+                <div className="flex items-center space-x-4">
+                  <div
                     className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
                     style={{
                       backgroundColor: getCategoryColor(t.category)
                     }}>
-
-                        {t.category.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">{t.title}</p>
-                        <div className="flex items-center text-xs text-slate-500 space-x-2">
-                          <span>{t.category}</span>
-                          <span>•</span>
-                          <span>{formatDate(t.date)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span className="font-semibold text-slate-900">
-                      -{formatCurrency(t.amount)}
-                    </span>
+                    {t.category.charAt(0)}
                   </div>
+                  <div>
+                    <p className="font-medium text-slate-900">{t.title}</p>
+                    <div className="flex items-center text-xs text-slate-500 space-x-2">
+                      <span>{t.category}</span>
+                      <span>•</span>
+                      <span>{formatDate(t.date)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => onEdit(t)}
+                      className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                      title="Edit">
+                      <Edit2Icon className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this expense?')) {
+                          onDelete(t.id);
+                        }
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                      title="Delete">
+                      <Trash2Icon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span className="font-semibold text-slate-900">
+                    -{formatCurrency(t.amount)}
+                  </span>
+                </div>
+              </div>
               )}
               </div> :
 
