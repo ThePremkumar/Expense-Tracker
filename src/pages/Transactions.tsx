@@ -9,9 +9,10 @@ import {
   Edit2Icon,
   Trash2Icon,
   FilterIcon,
-  DownloadIcon } from
+  DownloadIcon,
+  UploadIcon } from
 'lucide-react';
-import { formatCurrency, formatDate, getCategoryColor, exportToCSV } from '../utils/helpers';
+import { formatCurrency, formatDate, getCategoryColor, exportToCSV, parseCSV } from '../utils/helpers';
 import { Transaction, Category } from '../types';
 interface TransactionsProps {
   transactions: Transaction[];
@@ -19,13 +20,15 @@ interface TransactionsProps {
   onAdd: () => void;
   onEdit: (t: Transaction) => void;
   onDelete: (id: string) => void;
+  onImport: (ts: Omit<Transaction, 'id' | 'createdAt'>[]) => void;
 }
 export function Transactions({
   transactions,
   categories,
   onAdd,
   onEdit,
-  onDelete
+  onDelete,
+  onImport
 }: TransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -33,6 +36,31 @@ export function Transactions({
   const handleExport = () => {
     const filename = `expenses-${new Date().toISOString().split('T')[0]}.csv`;
     exportToCSV(filteredTransactions, filename);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      try {
+        const parsed = parseCSV(text);
+        if (parsed.length > 0) {
+          if (window.confirm(`Found ${parsed.length} transactions. Import them?`)) {
+            onImport(parsed);
+          }
+        } else {
+          alert('No valid transactions found in the CSV.');
+        }
+      } catch (err: any) {
+        alert(`Error parsing CSV: ${err.message}`);
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    e.target.value = '';
   };
 
   const filteredTransactions = transactions.filter((t) => {
@@ -52,6 +80,21 @@ export function Transactions({
           <p className="text-slate-500">Manage your income and expenses</p>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="file"
+            id="csv-import"
+            accept=".csv"
+            className="hidden"
+            onChange={handleImport}
+          />
+          <Button 
+            variant="secondary" 
+            className="shadow-sm"
+            onClick={() => document.getElementById('csv-import')?.click()}
+          >
+            <UploadIcon className="w-4 h-4 mr-2" />
+            Import CSV
+          </Button>
           <Button variant="secondary" onClick={handleExport} className="shadow-sm">
             <DownloadIcon className="w-4 h-4 mr-2" />
             Export CSV
@@ -62,6 +105,7 @@ export function Transactions({
           </Button>
         </div>
       </div>
+
 
 
       <Card>

@@ -154,6 +154,21 @@ export function useExpenseTracker() {
     }));
   };
 
+  const bulkAddTransactions = (
+    transactions: Omit<Transaction, 'id' | 'createdAt'>[]
+  ) => {
+    const newTransactions: Transaction[] = transactions.map((t) => ({
+      ...t,
+      id: crypto.randomUUID(),
+      createdAt: Date.now()
+    }));
+    setState((prev) => ({
+      ...prev,
+      transactions: [...prev.transactions, ...newTransactions]
+    }));
+  };
+
+
   const editTransaction = (id: string, updates: Partial<Transaction>) => {
     setState((prev) => ({
       ...prev,
@@ -279,6 +294,7 @@ export function useExpenseTracker() {
     categories: allCategories,
     allCategories,
     addTransaction,
+    bulkAddTransactions,
     editTransaction,
     deleteTransaction,
     updateBudget,

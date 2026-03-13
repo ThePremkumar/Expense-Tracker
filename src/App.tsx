@@ -24,6 +24,7 @@ export function App() {
     availableMonths,
     categories,
     addTransaction,
+    bulkAddTransactions,
     editTransaction,
     deleteTransaction,
     updateBudget,
@@ -119,7 +120,8 @@ export function App() {
           categories={categories}
           onAdd={handleOpenAddModal}
           onEdit={handleOpenEditModal}
-          onDelete={deleteTransaction} />
+          onDelete={deleteTransaction}
+          onImport={bulkAddTransactions} />
 
         }
 
