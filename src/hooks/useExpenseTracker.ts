@@ -38,28 +38,7 @@ const DEV_MODE = true; // Temporary flag for development without deployed rules
 
 // Initialize with sample data for development
 if (DEV_MODE && !localStorage.getItem('transactions')) {
-  const sampleTransactions: Transaction[] = [
-    {
-      id: '1',
-      title: 'Breakfast',
-      amount: 40,
-      category: 'Food',
-      date: new Date().toISOString().split('T')[0],
-      userId: 'dev-user',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    {
-      id: '2', 
-      title: 'Bus ticket',
-      amount: 15,
-      category: 'Travel',
-      date: new Date().toISOString().split('T')[0],
-      userId: 'dev-user',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-  ];
+  const sampleTransactions: Transaction[] = [];
   localStorage.setItem('transactions', JSON.stringify(sampleTransactions));
   localStorage.setItem('budgets', JSON.stringify({}));
   localStorage.setItem('customCategories', JSON.stringify([]));
