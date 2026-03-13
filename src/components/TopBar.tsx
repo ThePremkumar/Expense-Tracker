@@ -1,5 +1,5 @@
 
-import { CalendarIcon, BellIcon, SearchIcon, MenuIcon, WalletIcon } from 'lucide-react';
+import { CalendarIcon, BellIcon, SearchIcon, MenuIcon, WalletIcon, CloudIcon } from 'lucide-react';
 import { getMonthName } from '../utils/helpers';
 
 interface TopBarProps {
@@ -7,9 +7,18 @@ interface TopBarProps {
   onMonthChange: (month: string) => void;
   availableMonths: string[];
   onMenuClick?: () => void;
+  hasLocalData?: boolean;
+  onSync?: () => void;
 }
 
-export function TopBar({ currentMonth, onMonthChange, availableMonths, onMenuClick }: TopBarProps) {
+export function TopBar({ 
+  currentMonth, 
+  onMonthChange, 
+  availableMonths, 
+  onMenuClick,
+  hasLocalData,
+  onSync
+}: TopBarProps) {
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-10">
       <div className="flex items-center gap-4 flex-1">
@@ -24,6 +33,16 @@ export function TopBar({ currentMonth, onMonthChange, availableMonths, onMenuCli
            <WalletIcon className="w-5 h-5" />
            <span className="font-bold text-lg text-slate-900">Tracker</span>
         </div>
+
+        {hasLocalData && (
+          <button
+            onClick={onSync}
+            className="hidden sm:flex items-center gap-2 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200 text-sm font-medium hover:bg-amber-100 transition-colors animate-pulse"
+          >
+            <CloudIcon className="w-4 h-4" />
+            Sync to Cloud
+          </button>
+        )}
 
         <div className="relative max-w-xs w-full hidden sm:block">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

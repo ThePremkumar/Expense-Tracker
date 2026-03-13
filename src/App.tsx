@@ -43,7 +43,9 @@ function AppContent() {
     deleteRecurringExpense,
     updateBudget,
     addCustomCategory,
-    deleteCustomCategory
+    deleteCustomCategory,
+    hasLocalData,
+    syncLocalData
   } = useExpenseTracker();
 
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'transactions' | 'reports' | 'fixed' | 'yearly' | 'insights' | 'settings'>('dashboard');
@@ -93,7 +95,9 @@ function AppContent() {
           onMonthChange={setCurrentMonth}
           availableMonths={availableMonths}
           onMenuClick={() => setIsSidebarOpen(true)}
-        />
+        hasLocalData={hasLocalData}
+        onSync={syncLocalData}
+      />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
 
