@@ -84,18 +84,34 @@ export function Dashboard({
     filter((t) => t.date === today).
     reduce((sum, t) => sum + t.amount, 0);
   }, [recentTransactions, today]);
-  // Cumulative spending data for line chart
+  // Cumulative spending data for line chart with remaining balance
   const cumulativeData = useMemo(() => {
     const dailyData = groupTransactionsByDate(recentTransactions);
     let cumulative = 0;
-    return dailyData.map((d) => {
+    const data = dailyData.map((d) => {
       cumulative += d.amount;
       return {
         day: new Date(d.date).getDate(),
-        amount: cumulative
+        date: d.date,
+        spent: cumulative,
+        remaining: totalBudget > 0 ? Math.max(totalBudget - cumulative, 0) : 0,
+        dailySpend: d.amount
       };
     });
-  }, [recentTransactions]);
+
+    // Add starting point (day 1 with full budget) if first transaction isn't on day 1
+    if (data.length > 0 && data[0].day > 1 && totalBudget > 0) {
+      data.unshift({
+        day: 1,
+        date: '',
+        spent: 0,
+        remaining: totalBudget,
+        dailySpend: 0
+      });
+    }
+
+    return data;
+  }, [recentTransactions, totalBudget]);
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -226,14 +242,26 @@ export function Dashboard({
         </Card>
       </div>
 
-      {/* Spending Trend Chart */}
+      {/* Spending Trend Chart with Remaining Balance */}
       {cumulativeData.length > 1 &&
       <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Spending Trend</CardTitle>
+            <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-0.5 rounded-full bg-indigo-500" />
+                <span className="text-slate-500">Cumulative Spent</span>
+              </div>
+              {totalBudget > 0 &&
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-0.5 rounded-full bg-emerald-500" />
+                  <span className="text-slate-500">Remaining Balance</span>
+                </div>
+              }
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64 w-full">
+            <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                 data={cumulativeData}
@@ -268,12 +296,16 @@ export function Dashboard({
                   tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`} />
 
                   <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number, name: string) => [
+                    formatCurrency(value),
+                    name === 'spent' ? 'Cumulative Spent' : name === 'remaining' ? 'Remaining Balance' : name === 'dailySpend' ? 'Today\'s Spend' : name
+                  ]}
                   labelFormatter={(label) => `Day ${label}`}
                   contentStyle={{
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     border: 'none',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    boxShadow: '0 4px 12px -1px rgb(0 0 0 / 0.15)',
+                    padding: '12px 16px'
                   }} />
 
                   {totalBudget > 0 &&
@@ -282,17 +314,19 @@ export function Dashboard({
                   stroke="#f43f5e"
                   strokeDasharray="5 5"
                   label={{
-                    value: 'Budget',
+                    value: 'Budget Limit',
                     fill: '#f43f5e',
-                    fontSize: 12
+                    fontSize: 11
                   }} />
 
                 }
+                  {/* Cumulative Spending Line */}
                   <Line
                   type="monotone"
-                  dataKey="amount"
+                  dataKey="spent"
+                  name="spent"
                   stroke="#6366f1"
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   dot={{
                     fill: '#6366f1',
                     strokeWidth: 0,
@@ -300,8 +334,48 @@ export function Dashboard({
                   }}
                   activeDot={{
                     r: 6,
-                    fill: '#6366f1'
+                    fill: '#6366f1',
+                    stroke: '#fff',
+                    strokeWidth: 2
                   }} />
+
+                  {/* Remaining Balance Line */}
+                  {totalBudget > 0 &&
+                  <Line
+                    type="monotone"
+                    dataKey="remaining"
+                    name="remaining"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    strokeDasharray="6 3"
+                    dot={{
+                      fill: '#10b981',
+                      strokeWidth: 0,
+                      r: 4
+                    }}
+                    activeDot={{
+                      r: 6,
+                      fill: '#10b981',
+                      stroke: '#fff',
+                      strokeWidth: 2
+                    }} />
+                  }
+
+                  {/* Daily Spend as subtle area reference */}
+                  <Line
+                    type="monotone"
+                    dataKey="dailySpend"
+                    name="dailySpend"
+                    stroke="#f59e0b"
+                    strokeWidth={1.5}
+                    strokeDasharray="3 3"
+                    dot={false}
+                    activeDot={{
+                      r: 4,
+                      fill: '#f59e0b',
+                      stroke: '#fff',
+                      strokeWidth: 2
+                    }} />
 
                 </LineChart>
               </ResponsiveContainer>
