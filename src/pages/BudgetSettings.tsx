@@ -14,7 +14,11 @@ import {
   MinusCircleIcon,
   ArrowRightIcon,
   TrendingUpIcon,
-  TrendingDownIcon
+  TrendingDownIcon,
+  PiggyBankIcon,
+  ArrowDownCircleIcon,
+  WalletIcon,
+  SparklesIcon
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { MonthlyBudget } from '../types';
@@ -24,8 +28,14 @@ interface BudgetSettingsProps {
   monthlyBudget: MonthlyBudget | null;
   customCategories: string[];
   onUpdateBudget: (month: string, amount: number) => void;
+  onUpdateUpiBudget: (month: string, amount: number) => void;
+  onRemoveUpiBudget: (month: string) => void;
   onAddCategory: (name: string) => void;
   onDeleteCategory?: (name: string) => void;
+  previousMonthRemaining?: number;
+  onCarryForward?: (amount: number, target: 'budget' | 'savings') => void;
+  savings?: number;
+  onUpdateSavings?: (amount: number) => void;
 }
 
 export function BudgetSettings({ 
@@ -33,23 +43,50 @@ export function BudgetSettings({
   monthlyBudget, 
   customCategories,
   onUpdateBudget,
+  onUpdateUpiBudget,
+  onRemoveUpiBudget,
   onAddCategory,
-  onDeleteCategory
+  onDeleteCategory,
+  previousMonthRemaining = 0,
+  onCarryForward,
+  savings = 0,
+  onUpdateSavings
 }: BudgetSettingsProps) {
   const [newBudget, setNewBudget] = useState(monthlyBudget?.totalBudget.toString() || '0');
+  const [upiBudgetStr, setUpiBudgetStr] = useState(monthlyBudget?.upiBudget?.toString() || '0');
   const [newCategory, setNewCategory] = useState('');
 
   // Quick adjust states
   const [adjustMode, setAdjustMode] = useState<'add' | 'remove'>('add');
   const [adjustAmount, setAdjustAmount] = useState('');
 
+  // Carry forward states
+  const [carryForwardAmount, setCarryForwardAmount] = useState(previousMonthRemaining.toString());
+  const [carryTarget, setCarryTarget] = useState<'budget' | 'savings'>('budget');
+
+  // Savings adjust
+  const [savingsAdjust, setSavingsAdjust] = useState('');
+
   const currentBudgetAmount = monthlyBudget?.totalBudget || 0;
+  const alreadyCarriedForward = (monthlyBudget?.carryForward || 0) + (monthlyBudget?.carryForwardToSavings || 0);
 
   const handleUpdateBudget = () => {
     const amount = parseFloat(newBudget);
     if (!isNaN(amount) && amount >= 0) {
       onUpdateBudget(currentMonth, amount);
     }
+  };
+
+  const handleUpdateUpiBudget = () => {
+    const amount = parseFloat(upiBudgetStr);
+    if (!isNaN(amount) && amount >= 0) {
+      onUpdateUpiBudget(currentMonth, amount);
+    }
+  };
+
+  const handleRemoveUpiBudget = () => {
+    onRemoveUpiBudget(currentMonth);
+    setUpiBudgetStr('0');
   };
 
   const handleAddToBudget = () => {
@@ -79,6 +116,30 @@ export function BudgetSettings({
     }
   };
 
+  const handleCarryForward = () => {
+    const amount = parseFloat(carryForwardAmount);
+    if (!isNaN(amount) && amount > 0 && onCarryForward) {
+      onCarryForward(Math.min(amount, previousMonthRemaining), carryTarget);
+      setCarryForwardAmount('0');
+    }
+  };
+
+  const handleAddToSavings = () => {
+    const amount = parseFloat(savingsAdjust);
+    if (!isNaN(amount) && amount > 0 && onUpdateSavings) {
+      onUpdateSavings(savings + amount);
+      setSavingsAdjust('');
+    }
+  };
+
+  const handleRemoveFromSavings = () => {
+    const amount = parseFloat(savingsAdjust);
+    if (!isNaN(amount) && amount > 0 && onUpdateSavings) {
+      onUpdateSavings(Math.max(0, savings - amount));
+      setSavingsAdjust('');
+    }
+  };
+
   // Computed preview values
   const adjustNum = parseFloat(adjustAmount) || 0;
   const previewNewBudget = adjustMode === 'add'
@@ -94,7 +155,7 @@ export function BudgetSettings({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Budget Settings</h1>
-          <p className="text-slate-500 text-sm">Control your spending limits and categories</p>
+          <p className="text-slate-500 text-sm">Control your spending limits, savings and categories</p>
         </div>
         <div className="bg-white p-2 px-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2 self-start sm:self-auto">
           <SettingsIcon className="w-4 h-4 text-indigo-600" />
@@ -114,16 +175,13 @@ export function BudgetSettings({
               <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full w-fit">{currentMonth}</span>
             </div>
             <CardContent className="p-6">
-              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                Setting a monthly budget helps you stay financially disciplined and achieve your savings goals faster.
-              </p>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Budget Amount (₹)</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Total Budget Amount (₹)</label>
                   <div className="flex gap-2">
                     <Input
                       type="number"
-                      placeholder="e.g. 50000"
+                      placeholder="Total Budget"
                       value={newBudget}
                       onChange={(e) => setNewBudget(e.target.value)}
                       className="flex-1"
@@ -131,15 +189,214 @@ export function BudgetSettings({
                     <Button onClick={handleUpdateBudget}>Update</Button>
                   </div>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                  <span className="text-sm text-slate-600">Current active budget:</span>
-                  <span className="text-lg font-bold text-indigo-700">{formatCurrency(currentBudgetAmount)}</span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                      <WalletIcon className="w-3 h-3 text-indigo-500" /> Total Pool
+                    </div>
+                    <span className="text-lg font-bold text-indigo-700">{formatCurrency(currentBudgetAmount)}</span>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                      <CheckCircle2Icon className="w-3 h-3 text-emerald-500" /> Mode Split Active
+                    </div>
+                    <span className="text-lg font-bold text-slate-700">Detailed</span>
+                  </div>
+                </div>
+
+                {/* UPI Split Sub-Section */}
+                <div className="pt-6 border-t border-slate-100">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center justify-between">
+                    <span>UPI Allocation (₹)</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optional</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="UPI portion"
+                      value={upiBudgetStr}
+                      onChange={(e) => setUpiBudgetStr(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button variant="secondary" onClick={handleUpdateUpiBudget}>Set UPI</Button>
+                    {monthlyBudget?.upiBudget && monthlyBudget.upiBudget > 0 ? (
+                      <Button variant="ghost" onClick={handleRemoveUpiBudget} className="text-rose-500 hover:text-rose-600">
+                        <Trash2Icon className="w-4 h-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2">
+                    {monthlyBudget?.upiBudget 
+                      ? `UPI: ${formatCurrency(monthlyBudget.upiBudget)} | Cash: ${formatCurrency(currentBudgetAmount - monthlyBudget.upiBudget)}`
+                      : 'Setting a UPI budget helps track digital spending separately.'}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick Adjust Budget Card — NEW FEATURE */}
+          {/* Carry Forward Card */}
+          {previousMonthRemaining > 0 && alreadyCarriedForward === 0 && onCarryForward && (
+            <Card className="overflow-hidden border-none shadow-md">
+              <div className="bg-gradient-to-r from-sky-600 to-blue-600 p-4 flex flex-col sm:flex-row sm:items-center justify-between text-white gap-2">
+                <div className="flex items-center gap-2">
+                  <ArrowDownCircleIcon className="w-5 h-5 text-sky-200" />
+                  <h3 className="font-bold">Carry Forward</h3>
+                </div>
+                <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full w-fit">
+                  {formatCurrency(previousMonthRemaining)} available
+                </span>
+              </div>
+              <CardContent className="p-6">
+                <p className="text-sm text-slate-500 mb-5 leading-relaxed">
+                  You have <span className="font-bold text-sky-700">{formatCurrency(previousMonthRemaining)}</span> remaining from last month. Choose where to allocate it.
+                </p>
+
+                {/* Target Toggle */}
+                <div className="flex rounded-xl overflow-hidden border border-slate-200 mb-5">
+                  <button
+                    onClick={() => setCarryTarget('budget')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                      carryTarget === 'budget'
+                        ? 'bg-sky-600 text-white shadow-inner'
+                        : 'bg-white text-slate-600 hover:bg-sky-50'
+                    }`}
+                  >
+                    <WalletIcon className="w-4 h-4" />
+                    Add to Budget
+                  </button>
+                  <button
+                    onClick={() => setCarryTarget('savings')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                      carryTarget === 'savings'
+                        ? 'bg-emerald-600 text-white shadow-inner'
+                        : 'bg-white text-slate-600 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <PiggyBankIcon className="w-4 h-4" />
+                    Move to Savings
+                  </button>
+                </div>
+
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Amount to carry forward (₹)
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter amount"
+                      value={carryForwardAmount}
+                      onChange={(e) => setCarryForwardAmount(e.target.value)}
+                      className="flex-1"
+                      min="0"
+                      max={previousMonthRemaining.toString()}
+                    />
+                    <Button
+                      onClick={handleCarryForward}
+                      disabled={parseFloat(carryForwardAmount) <= 0}
+                      className={carryTarget === 'budget'
+                        ? 'bg-sky-600 hover:bg-sky-700'
+                        : 'bg-emerald-600 hover:bg-emerald-700'
+                      }
+                    >
+                      <SparklesIcon className="w-4 h-4 mr-1.5" />
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Quick amounts */}
+                <div>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick amounts</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[previousMonthRemaining, Math.round(previousMonthRemaining / 2), Math.round(previousMonthRemaining / 4)].filter(a => a > 0).map(amt => (
+                      <button
+                        key={amt}
+                        onClick={() => setCarryForwardAmount(amt.toString())}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
+                          carryForwardAmount === amt.toString()
+                            ? 'bg-sky-100 border-sky-300 text-sky-800'
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {formatCurrency(amt)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Already carried forward indicator */}
+          {alreadyCarriedForward > 0 && (
+            <Card className="overflow-hidden border-none shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2Icon className="w-5 h-5 text-emerald-500" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">Carry Forward Applied</p>
+                    <p className="text-xs text-slate-500">
+                      {monthlyBudget?.carryForward ? `${formatCurrency(monthlyBudget.carryForward)} to budget` : ''}
+                      {monthlyBudget?.carryForward && monthlyBudget?.carryForwardToSavings ? ' • ' : ''}
+                      {monthlyBudget?.carryForwardToSavings ? `${formatCurrency(monthlyBudget.carryForwardToSavings)} to savings` : ''}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Savings Card */}
+          <Card className="overflow-hidden border-none shadow-md">
+            <div className="bg-gradient-to-r from-emerald-600 to-green-600 p-4 flex flex-col sm:flex-row sm:items-center justify-between text-white gap-2">
+              <div className="flex items-center gap-2">
+                <PiggyBankIcon className="w-5 h-5 text-emerald-200" />
+                <h3 className="font-bold">Savings</h3>
+              </div>
+              <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full w-fit">
+                {formatCurrency(savings)}
+              </span>
+            </div>
+            <CardContent className="p-6">
+              <p className="text-sm text-slate-500 mb-5 leading-relaxed">
+                Add or withdraw from your savings balance.
+              </p>
+              <div className="flex gap-2 mb-4">
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={savingsAdjust}
+                  onChange={(e) => setSavingsAdjust(e.target.value)}
+                  className="flex-1"
+                  min="0"
+                />
+                <Button
+                  onClick={handleAddToSavings}
+                  disabled={!savingsAdjust || parseFloat(savingsAdjust) <= 0}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <PlusCircleIcon className="w-4 h-4 mr-1" /> Add
+                </Button>
+                <Button
+                  onClick={handleRemoveFromSavings}
+                  disabled={!savingsAdjust || parseFloat(savingsAdjust) <= 0}
+                  variant="danger"
+                >
+                  <MinusCircleIcon className="w-4 h-4 mr-1" /> Remove
+                </Button>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between">
+                <span className="text-sm text-emerald-700">Total Savings:</span>
+                <span className="text-lg font-bold text-emerald-800">{formatCurrency(savings)}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Adjust Budget Card */}
           <Card className="overflow-hidden border-none shadow-md">
             <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 flex flex-col sm:flex-row sm:items-center justify-between text-white gap-2">
               <div className="flex items-center gap-2">
@@ -312,7 +569,7 @@ export function BudgetSettings({
                      {c}
                    </div>
                  ))}
-                 {customCategories.map(c => (
+                 {customCategories.map((c: string) => (
                    <div key={c} className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-2 text-sm text-indigo-700 font-medium group">
                      {c}
                      <button 
@@ -338,7 +595,7 @@ export function BudgetSettings({
           <CardContent className="p-0">
             {monthlyBudget?.history && monthlyBudget.history.length > 0 ? (
               <div className="divide-y divide-slate-100">
-                {monthlyBudget.history.slice().reverse().map((entry, idx) => (
+                {monthlyBudget.history.slice().reverse().map((entry: any, idx: number) => (
                   <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-medium text-slate-400">{formatDate(entry.date)}</span>
@@ -356,6 +613,9 @@ export function BudgetSettings({
                             : 'Set'}
                       </span>
                     </div>
+                    {entry.reason && (
+                      <p className="text-xs text-slate-500 mb-1">{entry.reason}</p>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm line-through text-slate-400">{formatCurrency(entry.previousBudget)}</span>

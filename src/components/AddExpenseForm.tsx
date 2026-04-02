@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Button } from './ui/Button';
-import { Transaction, Category } from '../types';
+import { Transaction, Category, PaymentMode } from '../types';
+import { BanknoteIcon, SmartphoneIcon } from 'lucide-react';
 
 interface AddExpenseFormProps {
   initialData?: Transaction;
@@ -22,6 +23,8 @@ export function AddExpenseForm({
   const [category, setCategory] = useState<Category>(initialData?.category || (categories[0] || ''));
   const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState(initialData?.notes || '');
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>(initialData?.paymentMode || 'Cash');
+  const [upiId, setUpiId] = useState(initialData?.upiId || '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -43,6 +46,8 @@ export function AddExpenseForm({
       amount: Number(amount),
       category,
       date,
+      paymentMode,
+      upiId: paymentMode === 'UPI' ? upiId.trim() : '',
       notes: notes.trim() || ''
     });
   };
@@ -89,6 +94,49 @@ export function AddExpenseForm({
           label: c
         }))}
       />
+
+      {/* Payment Mode Selector */}
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-slate-700">
+          Payment Mode
+        </label>
+        <div className="flex rounded-xl overflow-hidden border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setPaymentMode('Cash')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+              paymentMode === 'Cash'
+                ? 'bg-emerald-600 text-white shadow-inner'
+                : 'bg-white text-slate-600 hover:bg-emerald-50'
+            }`}
+          >
+            <BanknoteIcon className="w-4 h-4" />
+            Cash
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentMode('UPI')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
+              paymentMode === 'UPI'
+                ? 'bg-violet-600 text-white shadow-inner'
+                : 'bg-white text-slate-600 hover:bg-violet-50'
+            }`}
+          >
+            <SmartphoneIcon className="w-4 h-4" />
+            UPI
+          </button>
+        </div>
+      </div>
+
+      {/* UPI ID field - only shown when UPI is selected */}
+      {paymentMode === 'UPI' && (
+        <Input
+          label="UPI ID / Description"
+          placeholder="e.g., name@upi or Google Pay payment"
+          value={upiId}
+          onChange={(e) => setUpiId(e.target.value)}
+        />
+      )}
 
       <div className="space-y-1.5">
         <label className="block text-sm font-medium text-slate-700">

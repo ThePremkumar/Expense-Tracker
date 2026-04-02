@@ -1,9 +1,8 @@
-import React, { useMemo, Component } from 'react';
+import { useMemo } from 'react';
 import { Transaction, MonthlyBudget, Insight } from '../types';
 import {
   formatCurrency,
-  groupTransactionsByCategory,
-  getCurrentMonthKey } from
+  groupTransactionsByCategory } from
 '../utils/helpers';
 import {
   AlertTriangleIcon,
@@ -86,7 +85,6 @@ export function SmartInsights({
     const prevMonthTxns = allTransactions.filter((t) =>
     t.date.startsWith(prevMonth)
     );
-    const prevMonthSpent = prevMonthTxns.reduce((sum, t) => sum + t.amount, 0);
     // Category data
     const currentCategoryData = groupTransactionsByCategory(currentMonthTxns);
     const prevCategoryData = groupTransactionsByCategory(prevMonthTxns);
@@ -179,6 +177,8 @@ export function SmartInsights({
       });
     }
     // 6. Month-over-month comparison
+    const prevMonthSpent = prevMonthTxns.reduce((sum, t) => sum + t.amount, 0);
+
     if (prevMonthSpent > 0 && currentMonthSpent > 0) {
       const diff = currentMonthSpent - prevMonthSpent;
       const percentChange = diff / prevMonthSpent * 100;
@@ -192,6 +192,41 @@ export function SmartInsights({
         });
       }
     }
+
+    // 7. UPI Usage Dominance
+    const upiSpent = currentMonthTxns
+      .filter((t) => t.paymentMode === 'UPI')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const upiCount = currentMonthTxns.filter((t) => t.paymentMode === 'UPI').length;
+    
+    if (currentMonthSpent > 0) {
+      const upiPercent = (upiSpent / currentMonthSpent) * 100;
+      if (upiPercent > 70) {
+        result.push({
+          id: 'upi-dominance',
+          type: 'info',
+          icon: 'sparkles',
+          message: `UPI is your primary payment mode (${upiPercent.toFixed(0)}%)`,
+          detail: `Used for ${upiCount} transactions this month`
+        });
+      }
+    }
+
+    // 8. UPI Budget Insight
+    const currentUpiBudget = allBudgets[currentMonth]?.upiBudget || 0;
+    if (currentUpiBudget > 0) {
+      const upiUsagePercent = (upiSpent / currentUpiBudget) * 100;
+      if (upiUsagePercent > 90) {
+        result.push({
+          id: 'upi-budget-warning',
+          type: 'danger',
+          icon: 'alert-triangle',
+          message: `Digital budget nearly exhausted (90%+)`,
+          detail: `${formatCurrency(upiSpent)} of ${formatCurrency(currentUpiBudget)} UPI budget used`
+        });
+      }
+    }
+
     return result.slice(0, maxInsights);
   }, [allTransactions, allBudgets, currentMonth, maxInsights]);
   if (insights.length === 0) {

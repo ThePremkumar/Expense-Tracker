@@ -22,6 +22,13 @@ export const getCurrentMonthKey = (): string => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
 
+export const getPreviousMonthKey = (monthKey: string): string => {
+  const [year, month] = monthKey.split('-').map(Number);
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  return `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+};
+
 export const getMonthName = (monthKey: string): string => {
   const [year, month] = monthKey.split('-');
   const date = new Date(parseInt(year), parseInt(month) - 1, 1);
@@ -177,8 +184,9 @@ export const parseCSV = (csvText: string): Omit<Transaction, 'id' | 'createdAt' 
   const categoryIdx = headers.findIndex(h => h.includes('category'));
   const amountIdx = headers.findIndex(h => h.includes('amount') || h.includes('value'));
   const notesIdx = headers.findIndex(h => h.includes('notes') || h.includes('comment'));
+  const paymentIdx = headers.findIndex(h => h.includes('payment') || h.includes('mode') || h.includes('upi'));
   
-  console.log('CSV Parsing - Column indices:', { dateIdx, titleIdx, categoryIdx, amountIdx, notesIdx });
+  console.log('CSV Parsing - Column indices:', { dateIdx, titleIdx, categoryIdx, amountIdx, notesIdx, paymentIdx });
   
   if (dateIdx === -1 || amountIdx === -1 || titleIdx === -1) {
     throw new Error('CSV must contain at least Date, Title, and Amount columns.');
@@ -235,6 +243,8 @@ export const parseCSV = (csvText: string): Omit<Transaction, 'id' | 'createdAt' 
     const amountVal = clean(values[amountIdx]).replace(/[^\d.-]/g, '');
     const amount = parseFloat(amountVal);
     const notes = notesIdx !== -1 ? clean(values[notesIdx]) : '';
+    const paymentRaw = paymentIdx !== -1 && values[paymentIdx] ? clean(values[paymentIdx]).toUpperCase() : '';
+    const paymentMode = paymentRaw === 'UPI' ? 'UPI' as const : 'Cash' as const;
 
     if (dateStr && title && !isNaN(amount)) {
       transactions.push({
@@ -242,6 +252,7 @@ export const parseCSV = (csvText: string): Omit<Transaction, 'id' | 'createdAt' 
         title: title || 'Untitled Expense',
         category: category as any,
         amount,
+        paymentMode,
         notes: notes || ''
       });
       processedLines++;

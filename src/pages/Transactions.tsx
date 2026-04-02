@@ -14,7 +14,9 @@ import {
   UploadIcon,
   XIcon,
   ChevronDownIcon,
-  ChevronUpIcon } from
+  ChevronUpIcon,
+  SmartphoneIcon,
+  BanknoteIcon } from
 'lucide-react';
 import { formatCurrency, formatDate, getCategoryColor, exportToCSV, parseCSV } from '../utils/helpers';
 import { CSVImportModal } from '../components/CSVImportModal';
@@ -330,15 +332,23 @@ export function Transactions({
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-slate-900">-{formatCurrency(t.amount)}</p>
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
-                          style={{
-                            backgroundColor: `${getCategoryColor(t.category)}15`,
-                            color: getCategoryColor(t.category)
-                          }}
-                        >
-                          {t.category}
-                        </span>
+                        <div className="flex items-center gap-1 justify-end mt-1">
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
+                            style={{
+                              backgroundColor: `${getCategoryColor(t.category)}15`,
+                              color: getCategoryColor(t.category)
+                            }}
+                          >
+                            {t.category}
+                          </span>
+                          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            t.paymentMode === 'UPI' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {t.paymentMode === 'UPI' ? <SmartphoneIcon className="w-2.5 h-2.5" /> : <BanknoteIcon className="w-2.5 h-2.5" />}
+                            {t.paymentMode || 'Cash'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     {t.notes && <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg italic">"{t.notes}"</p>}
@@ -364,6 +374,7 @@ export function Transactions({
                   <th className="p-4">Date</th>
                   <th className="p-4">Details</th>
                   <th className="p-4">Category</th>
+                  <th className="p-4">Mode</th>
                   <th className="p-4 text-right">Amount</th>
                   <th className="p-4 text-center">Actions</th>
                 </tr>
@@ -379,6 +390,14 @@ export function Transactions({
                     <td className="p-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: `${getCategoryColor(t.category)}15`, color: getCategoryColor(t.category) }}>
                         {t.category}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                        t.paymentMode === 'UPI' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {t.paymentMode === 'UPI' ? <SmartphoneIcon className="w-3 h-3" /> : <BanknoteIcon className="w-3 h-3" />}
+                        {t.paymentMode || 'Cash'}
                       </span>
                     </td>
                     <td className="p-4 text-right font-semibold text-slate-900">{formatCurrency(t.amount)}</td>

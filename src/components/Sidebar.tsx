@@ -9,7 +9,9 @@ import {
   LightbulbIcon,
   LogOutIcon,
   WalletIcon,
-  XIcon
+  XIcon,
+  SmartphoneIcon,
+  UsersIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -29,8 +31,10 @@ export function Sidebar({ currentTab, onTabChange, isOpen, onClose }: SidebarPro
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
     { id: 'transactions', label: 'Transactions', icon: ReceiptIcon },
+    { id: 'upi', label: 'UPI Tracker', icon: SmartphoneIcon },
     { id: 'fixed', label: 'Fixed Expenses', icon: RepeatIcon },
-    { id: 'reports', label: 'Monthly Reports', icon: PieChartIcon },
+    { id: 'family', label: 'Family Wallet', icon: UsersIcon },
+    { id: 'reports', label: 'Reports', icon: PieChartIcon },
     { id: 'yearly', label: 'Yearly Summary', icon: BarChart3Icon },
     { id: 'insights', label: 'Insights', icon: LightbulbIcon },
     { id: 'settings', label: 'Budget Settings', icon: SettingsIcon },
