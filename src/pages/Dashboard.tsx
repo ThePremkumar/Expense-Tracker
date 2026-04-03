@@ -5,25 +5,26 @@ import {
   PlusIcon,
   TrendingDownIcon,
   TrendingUpIcon,
-  AlertCircleIcon,
+  CheckCircle2Icon,
+  LightbulbIcon,
+  PieChart as PieChartIcon,
   WalletIcon,
-  ReceiptIcon,
-  PieChartIcon,
   CalendarIcon,
-  Edit2Icon,
-  Trash2Icon,
-  DownloadIcon,
-  SmartphoneIcon,
   BanknoteIcon,
+  SmartphoneIcon,
   ZapIcon,
-  TargetIcon,
-  GaugeIcon,
   ActivityIcon,
+  GaugeIcon,
+  TargetIcon,
   HelpCircleIcon,
   AlertTriangleIcon,
-  CheckCircle2Icon,
-  LightbulbIcon
+  DownloadIcon,
+  ReceiptIcon,
+  Edit2Icon,
+  Trash2Icon,
+  AlertCircleIcon
 } from 'lucide-react';
+import { SummaryStat, BudgetProgressCard } from '../components/DashboardComponents';
 import {
   formatCurrency,
   formatDate,
@@ -212,69 +213,31 @@ export function Dashboard({
       <div>
         <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">📊 Overall Summary</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-none shadow-md">
-            <CardContent className="p-5">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-indigo-100 font-medium text-sm mb-1">Total Budget</p>
-                  <h3 className="text-2xl font-bold">{formatCurrency(totalBudget)}</h3>
-                </div>
-                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <WalletIcon className="w-5 h-5 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-slate-500 font-medium text-sm mb-1">Total Spent</p>
-                  <h3 className="text-2xl font-bold text-slate-900">{formatCurrency(totalSpent)}</h3>
-                </div>
-                <div className="p-2 bg-rose-100 rounded-lg">
-                  <TrendingDownIcon className="w-5 h-5 text-rose-600" />
-                </div>
-              </div>
-              <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${isOverLimit ? 'bg-rose-500' : isNearLimit ? 'bg-amber-500' : 'bg-indigo-500'}`}
-                  style={{ width: `${Math.min(spentPercentage, 100)}%` }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-slate-500 font-medium text-sm mb-1">Remaining</p>
-                  <h3 className={`text-2xl font-bold ${remainingBalance < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                    {formatCurrency(remainingBalance)}
-                  </h3>
-                </div>
-                <div className={`p-2 rounded-lg ${remainingBalance < 0 ? 'bg-rose-100' : 'bg-emerald-100'}`}>
-                  <TrendingUpIcon className={`w-5 h-5 ${remainingBalance < 0 ? 'text-rose-600' : 'text-emerald-600'}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-slate-500 font-medium text-sm mb-1">Today's Spend</p>
-                  <h3 className="text-2xl font-bold text-amber-600">{formatCurrency(todaySpent)}</h3>
-                </div>
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <CalendarIcon className="w-5 h-5 text-amber-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <SummaryStat 
+            label="Total Budget" 
+            value={formatCurrency(totalBudget)} 
+            icon={WalletIcon} 
+            trend="neutral"
+          />
+          <SummaryStat 
+            label="Total Spent" 
+            value={formatCurrency(totalSpent)} 
+            subValue={`${spentPercentage.toFixed(0)}% of limit`}
+            icon={TrendingDownIcon} 
+            trend={isOverLimit ? 'down' : 'neutral'}
+          />
+          <SummaryStat 
+            label="Remaining" 
+            value={formatCurrency(remainingBalance)} 
+            icon={TrendingUpIcon} 
+            trend={remainingBalance < 0 ? 'down' : 'up'}
+          />
+          <SummaryStat 
+            label="Today's Spend" 
+            value={formatCurrency(todaySpent)} 
+            icon={CalendarIcon} 
+            trend="neutral"
+          />
         </div>
       </div>
 
@@ -286,32 +249,18 @@ export function Dashboard({
             <BanknoteIcon className="w-3.5 h-3.5" /> Cash Breakdown
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <Card className="border-l-4 border-l-emerald-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Cash Budget</p>
-                <p className="text-lg font-bold text-emerald-700">{formatCurrency(cashBudget)}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-emerald-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Cash Spent</p>
-                <p className="text-lg font-bold text-slate-900">{formatCurrency(cashSpent)}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-emerald-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Cash Remaining</p>
-                <p className={`text-lg font-bold ${cashRemaining >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                  {formatCurrency(cashRemaining)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-emerald-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Today Cash</p>
-                <p className="text-lg font-bold text-amber-600">{formatCurrency(todayCashSpent)}</p>
-              </CardContent>
-            </Card>
+            <BudgetProgressCard
+              title="Cash Budget"
+              budget={cashBudget}
+              spent={cashSpent}
+              remaining={cashRemaining}
+              primaryColor="bg-gradient-to-br from-emerald-600 to-teal-700"
+              icon={BanknoteIcon}
+            />
+            <div className="flex flex-col gap-3">
+               <SummaryStat label="Today Cash" value={formatCurrency(todayCashSpent)} icon={CalendarIcon} trend="neutral" />
+               <SummaryStat label="Cash Items" value={recentTransactions.filter(t => t.paymentMode === 'Cash').length.toString()} icon={ReceiptIcon} trend="neutral" />
+            </div>
           </div>
         </div>
 
@@ -321,32 +270,18 @@ export function Dashboard({
             <SmartphoneIcon className="w-3.5 h-3.5" /> UPI Breakdown
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <Card className="border-l-4 border-l-violet-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">UPI Budget</p>
-                <p className="text-lg font-bold text-violet-700">{upiBudget > 0 ? formatCurrency(upiBudget) : 'Not Set'}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-violet-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">UPI Spent</p>
-                <p className="text-lg font-bold text-slate-900">{formatCurrency(upiSpent)}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-violet-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">UPI Remaining</p>
-                <p className={`text-lg font-bold ${upiRemaining >= 0 ? 'text-violet-700' : 'text-rose-700'}`}>
-                  {upiBudget > 0 ? formatCurrency(upiRemaining) : '—'}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-violet-500 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Today UPI</p>
-                <p className="text-lg font-bold text-amber-600">{formatCurrency(todayUpiSpent)}</p>
-              </CardContent>
-            </Card>
+            <BudgetProgressCard
+              title="UPI Budget"
+              budget={upiBudget}
+              spent={upiSpent}
+              remaining={upiRemaining}
+              primaryColor="bg-gradient-to-br from-violet-600 to-purple-700"
+              icon={SmartphoneIcon}
+            />
+            <div className="flex flex-col gap-3">
+               <SummaryStat label="Today UPI" value={formatCurrency(todayUpiSpent)} icon={CalendarIcon} trend="neutral" />
+               <SummaryStat label="UPI Items" value={recentTransactions.filter(t => t.paymentMode === 'UPI').length.toString()} icon={SmartphoneIcon} trend="neutral" />
+            </div>
           </div>
         </div>
       </div>
@@ -486,7 +421,7 @@ export function Dashboard({
                         { color: '#8b5cf6' }, { color: '#00000010' },
                         { color: '#10b981' }, { color: '#00000010' }
                       ].map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? ['#8b5cf6', '#ede9fe', '#10b981', '#ecfdf5'][index] : '#f1f5f9'} />
+                        <Cell key={`cell-${index}`} fill={['#8b5cf6', '#ede9fe', '#10b981', '#ecfdf5'][index]} />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value: number) => formatCurrency(value)} />
@@ -541,7 +476,7 @@ export function Dashboard({
           <CardContent className="flex-1 p-0">
             {filteredTransactions.length > 0 ? (
               <div className="divide-y divide-slate-100">
-                {filteredTransactions.slice(0, 5).map((t) => (
+                {filteredTransactions.slice(0, 5).map((t: Transaction) => (
                   <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
                     <div className="flex items-center space-x-4">
                       <div

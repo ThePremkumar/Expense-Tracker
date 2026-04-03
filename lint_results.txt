@@ -1,0 +1,49 @@
+﻿
+D:\Downloads\Expense Tracker\src\components\DashboardComponents.tsx
+  19:3  warning  'colorClass' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\Downloads\Expense Tracker\src\hooks\useExpenseTracker.ts
+   89:9    error    Unexpected constant condition                                                 no-constant-condition
+  176:23   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  235:32   warning  'upiTransactions' is assigned a value but never used                          @typescript-eslint/no-unused-vars
+  235:49   warning  'cashTransactions' is assigned a value but never used                         @typescript-eslint/no-unused-vars
+  303:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  341:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  361:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  378:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  416:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  433:9    error    'updatedBudgets' is never reassigned. Use 'const' instead                     prefer-const
+  477:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  494:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  515:23   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  536:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  563:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  584:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  605:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  626:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  646:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  656:48   error    Type number trivially inferred from a number literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  682:101  error    Type string trivially inferred from a string literal, remove type annotation  @typescript-eslint/no-inferrable-types
+  782:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  835:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  878:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  893:24   warning  '_' is assigned a value but never used                                        @typescript-eslint/no-unused-vars
+  901:21   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  967:34   warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  969:19   warning  'id' is assigned a value but never used                                       @typescript-eslint/no-unused-vars
+
+D:\Downloads\Expense Tracker\src\pages\UPITracker.tsx
+   14:3  warning  'Edit3Icon' is defined but never used               @typescript-eslint/no-unused-vars
+   16:3  warning  'PlusCircleIcon' is defined but never used          @typescript-eslint/no-unused-vars
+   22:3  warning  'PieChart' is defined but never used                @typescript-eslint/no-unused-vars
+   23:3  warning  'Pie' is defined but never used                     @typescript-eslint/no-unused-vars
+   24:3  warning  'Cell' is defined but never used                    @typescript-eslint/no-unused-vars
+  131:9  warning  'upiByCategory' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  154:9  warning  'COLORS' is assigned a value but never used         @typescript-eslint/no-unused-vars
+
+D:\Downloads\Expense Tracker\src\utils\finance.ts
+  1:23  warning  'MonthlyBudget' is defined but never used  @typescript-eslint/no-unused-vars
+
+Γ£û 37 problems (4 errors, 33 warnings)
+  3 errors and 0 warnings potentially fixable with the `--fix` option.
+

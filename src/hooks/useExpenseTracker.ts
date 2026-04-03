@@ -1,105 +1,169 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { 
-  collection, 
-  onSnapshot, 
-  query, 
-  where, 
-  orderBy, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
+import { useState, useEffect, useMemo } from 'react';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
   doc,
-  serverTimestamp, 
-  writeBatch,
-  getDoc
+  serverTimestamp,
+  orderBy,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import {
-  AppState,
   Transaction,
   Category,
+  MonthlyBudget,
   RecurringExpense,
   FamilyMember,
-  FamilyTransaction
+  FamilyTransaction,
+  AppState
 } from '../types';
 import {
   getCurrentMonthKey,
   getPreviousMonthKey
 } from '../utils/helpers';
+import {
+  calculateBudgetHealthScore,
+  projectMonthEndSpend,
+  calculateDailyAverage,
+  getPaymentModeBreakdown,
+  getTodaySpendingByMode
+} from '../utils/finance';
 import toast from 'react-hot-toast';
 
 const DEFAULT_CATEGORIES: Category[] = [
-  'Room Rent',
-  'Food',
-  'Dress',
-  'Travel',
-  'Essentials',
-  'Miscellaneous'
+  'Food & Drinks',
+  'Interests',
+  'Education',
+  'Health',
+  'Shopping',
+  'Subscriptions',
+  'Transport',
+  'Rent/Mortgage',
+  'Monthly Bill',
+  'Gifts',
+  'Salary',
+  'Other'
 ];
 
-const DEV_MODE = true;
+interface UseExpenseTrackerReturn {
+  state: AppState;
+  currentMonth: string;
+  setCurrentMonth: (month: string) => void;
+  currentMonthTransactions: Transaction[];
+  totalSpent: number;
+  currentBudget: number;
+  upiBudget: number;
+  cashBudget: number;
+  remainingBalance: number;
+  upiSpent: number;
+  cashSpent: number;
+  upiRemaining: number;
+  cashRemaining: number;
+  todaySpent: number;
+  todayUpiSpent: number;
+  todayCashSpent: number;
+  dailyAverage: number;
+  spendingVelocity: number;
+  budgetHealthScore: number;
+  availableMonths: string[];
+  categories: string[];
+  addTransaction: (t: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  bulkAddTransactions: (transactions: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>[]) => Promise<void>;
+  editTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
+  deleteTransaction: (id: string | string[]) => Promise<void>;
+  updateBudget: (month: string, budget: number, reason?: string) => Promise<void>;
+  updateUpiBudget: (month: string, amount: number) => Promise<void>;
+  removeUpiBudget: (month: string) => Promise<void>;
+  carryForwardBudget: (amount: number, target: 'budget' | 'savings') => Promise<void>;
+  previousMonthRemaining: number;
+  updateSavings: (newSavings: number) => Promise<void>;
+  addCustomCategory: (name: string) => Promise<void>;
+  deleteCustomCategory: (name: string) => Promise<void>;
+  isLoaded: boolean;
+  addRecurringExpense: (expense: Omit<RecurringExpense, 'id' | 'createdAt' | 'isActive'>) => Promise<void>;
+  editRecurringExpense: (id: string, updates: Partial<RecurringExpense>) => Promise<void>;
+  deleteRecurringExpense: (id: string) => Promise<void>;
+  toggleRecurringExpense: (id: string) => Promise<void>;
+  totalFixedExpenses: number;
+  hasLocalData: boolean;
+  syncLocalData: () => Promise<void>;
+  addFamilyMember: (name: string, initialBalance?: number) => Promise<void>;
+  removeFamilyMember: (id: string) => Promise<void>;
+  modifyFamilyMemberAmount: (id: string, amount: number, type: 'deposit' | 'withdraw', description?: string) => Promise<void>;
+  transferBetweenFamily: (fromId: string, toId: string, amount: number) => Promise<void>;
+  transferFamilyToMain: (memberId: string, amount: number) => Promise<void>;
+  transferMainToFamily: (memberId: string, amount: number) => Promise<void>;
+}
 
-export function useExpenseTracker() {
+export function useExpenseTracker(): UseExpenseTrackerReturn {
   const { currentUser } = useAuth();
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonthKey());
+  const [isLoaded, setIsLoaded] = useState(false);
   const [state, setState] = useState<AppState>({
     transactions: [],
     budgets: {},
+    savings: 0,
     customCategories: [],
     recurringExpenses: [],
-    appliedRecurringMonths: [],
     familyMembers: [],
-    savings: 0
+    appliedRecurringMonths: []
   });
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonthKey());
 
-  const handleFirstTimeUser = useCallback(async () => {
-    if (!currentUser) return;
-    const userDocRef = doc(db, "users", currentUser.uid);
-    const userDoc = await getDoc(userDocRef);
-    
-    if (!userDoc.exists()) {
-      const batch = writeBatch(db);
-      
-      batch.set(userDocRef, {
-        customCategories: [],
-        budgets: {},
-        recurringExpenses: [],
-        appliedRecurringMonths: [],
-        familyMembers: [],
-        savings: 0
-      });
-
-      await batch.commit();
-    }
-  }, [currentUser]);
-
-  // Listen to Transactions
+  // Listen for user data (budgets, savings, categories, etc.)
   useEffect(() => {
-    if (!currentUser) return;
-
-    if (DEV_MODE && false) {
-      const localTransactions = localStorage.getItem('transactions') || '[]';
-      const localBudgets = localStorage.getItem('budgets') || '{}';
-      const localCategories = localStorage.getItem('customCategories') || '[]';
-      const localRecurring = localStorage.getItem('recurringExpenses') || '[]';
-      const localAppliedMonths = localStorage.getItem('appliedRecurringMonths') || '[]';
-      const localFamily = localStorage.getItem('familyMembers') || '[]';
-      const localSavings = localStorage.getItem('savings') || '0';
-      
-      setState({
-        transactions: JSON.parse(localTransactions),
-        budgets: JSON.parse(localBudgets),
-        customCategories: JSON.parse(localCategories),
-        recurringExpenses: JSON.parse(localRecurring),
-        appliedRecurringMonths: JSON.parse(localAppliedMonths),
-        familyMembers: JSON.parse(localFamily),
-        savings: parseFloat(localSavings)
-      });
+    if (!currentUser) {
       setIsLoaded(true);
       return;
     }
+
+    const userRef = doc(db, "users", currentUser.uid);
+    const unsub = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setState(prev => ({
+          ...prev,
+          budgets: data.budgets || {},
+          savings: data.savings || 0,
+          customCategories: data.customCategories || [],
+          recurringExpenses: data.recurringExpenses || [],
+          familyMembers: data.familyMembers || [],
+          appliedRecurringMonths: data.appliedRecurringMonths || []
+        }));
+      }
+      setIsLoaded(true);
+    }, () => {
+      console.warn("Permission denied for user data, using local storage fallback.");
+      // Initial local storage load
+      const localBudgets = localStorage.getItem('budgets');
+      const localSavings = localStorage.getItem('savings');
+      const localCustomCategories = localStorage.getItem('customCategories');
+      const localRecurring = localStorage.getItem('recurringExpenses');
+      const localFamily = localStorage.getItem('familyMembers');
+      
+      setState(prev => ({
+        ...prev,
+        budgets: localBudgets ? JSON.parse(localBudgets) : {},
+        savings: localSavings ? JSON.parse(localSavings) : 0,
+        customCategories: localCustomCategories ? JSON.parse(localCustomCategories) : [],
+        recurringExpenses: localRecurring ? JSON.parse(localRecurring) : [],
+        familyMembers: localFamily ? JSON.parse(localFamily) : [],
+        appliedRecurringMonths: []
+      }));
+      setIsLoaded(true);
+    });
+
+    return () => unsub();
+  }, [currentUser]);
+
+  // Listen for transactions (all transactions, we'll filter them locally)
+  useEffect(() => {
+    if (!currentUser) return;
 
     const q = query(
       collection(db, "expenses"),
@@ -107,112 +171,26 @@ export function useExpenseTracker() {
       orderBy("date", "desc")
     );
 
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const transactionsData: Transaction[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          transactionsData.push({ 
-            id: doc.id, 
-            ...data,
-            paymentMode: data.paymentMode || 'Cash' // Default for old transactions
-          } as Transaction);
-        });
-        
-        setState(prev => ({ ...prev, transactions: transactionsData }));
-        setIsLoaded(true);
-      },
-      (error) => {
-        console.error("Firestore error:", error);
-        
-        if (error.code === 'permission-denied') {
-          console.warn("Permission denied. Falling back to local storage.");
-          toast.error("Firebase Permission Denied! Using local storage fallback.", { id: 'permission-error' });
-        } else if (error.code === 'failed-precondition') {
-          console.warn("Missing Index! Click the link in the console to create it.");
-          toast.error("Database Index Building... Data will appear shortly. Please check console for the link!", { 
-            duration: 6000,
-            id: 'index-error' 
-          });
-        }
-        
-        const localTransactions = localStorage.getItem('transactions') || '[]';
-        const localBudgets = localStorage.getItem('budgets') || '{}';
-        const localCategories = localStorage.getItem('customCategories') || '[]';
-        const localRecurring = localStorage.getItem('recurringExpenses') || '[]';
-        const localAppliedMonths = localStorage.getItem('appliedRecurringMonths') || '[]';
-        const localFamily = localStorage.getItem('familyMembers') || '[]';
-        const localSavings = localStorage.getItem('savings') || '0';
-        
-        setState(prev => ({
-          ...prev,
-          transactions: JSON.parse(localTransactions),
-          budgets: JSON.parse(localBudgets),
-          customCategories: JSON.parse(localCategories),
-          recurringExpenses: JSON.parse(localRecurring),
-          appliedRecurringMonths: JSON.parse(localAppliedMonths),
-          familyMembers: JSON.parse(localFamily),
-          savings: parseFloat(localSavings)
-        }));
-        
-        setIsLoaded(true); 
-      }
-    );
-
-    const checkInitialization = async () => {
-      try {
-        const userDocRef = doc(db, "users", currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (!userDoc.exists()) {
-          await handleFirstTimeUser();
-        }
-      } catch (error: any) {
-        if (error.code === 'permission-denied') {
-          console.warn("User settings access denied. Using local fallback.");
-        }
-      }
-    };
-    checkInitialization();
-
-    return unsubscribe;
-  }, [currentUser, handleFirstTimeUser]);
-
-  // Listen to Budgets and Settings
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const unsubSettings = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setState(prev => ({
-          ...prev,
-          budgets: data.budgets || {},
-          customCategories: data.customCategories || [],
-          recurringExpenses: data.recurringExpenses || [],
-          appliedRecurringMonths: data.appliedRecurringMonths || [],
-          familyMembers: data.familyMembers || [],
-          savings: data.savings || 0
-        }));
-        
-        localStorage.setItem('budgets', JSON.stringify(data.budgets || {}));
-        localStorage.setItem('customCategories', JSON.stringify(data.customCategories || []));
-        localStorage.setItem('recurringExpenses', JSON.stringify(data.recurringExpenses || []));
-        localStorage.setItem('appliedRecurringMonths', JSON.stringify(data.appliedRecurringMonths || []));
-        localStorage.setItem('familyMembers', JSON.stringify(data.familyMembers || []));
-        localStorage.setItem('savings', JSON.stringify(data.savings || 0));
-      }
-    }, (error) => {
-      if (error.code === 'permission-denied') {
-        console.warn("Settings permission denied. Using cached values.");
+    const unsub = onSnapshot(q, (snapshot) => {
+      const txns = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      })) as Transaction[];
+      setState(prev => ({ ...prev, transactions: txns }));
+    }, () => {
+      console.warn("Permission denied for transactions, using local storage fallback.");
+      const localTxns = localStorage.getItem('transactions');
+      if (localTxns) {
+        setState(prev => ({ ...prev, transactions: JSON.parse(localTxns) }));
       }
     });
 
-    return unsubSettings;
+    return () => unsub();
   }, [currentUser]);
 
-  // Derived state
+  // DERIVED STATE
   const currentMonthTransactions = useMemo(() => {
-    return state.transactions.filter((t) => t.date.startsWith(currentMonth));
+    return state.transactions.filter(t => t.date.startsWith(currentMonth));
   }, [state.transactions, currentMonth]);
 
   const totalSpent = useMemo(() => {
@@ -221,202 +199,167 @@ export function useExpenseTracker() {
 
   const currentBudget = state.budgets[currentMonth]?.totalBudget || 0;
   const upiBudget = state.budgets[currentMonth]?.upiBudget || 0;
-  const cashBudget = Math.max(0, currentBudget - upiBudget);
+  const cashBudget = currentBudget - upiBudget;
   const remainingBalance = currentBudget - totalSpent;
 
   // UPI / Cash breakdowns
-  const upiSpent = useMemo(() => {
-    return currentMonthTransactions
-      .filter(t => t.paymentMode === 'UPI')
-      .reduce((sum, t) => sum + t.amount, 0);
-  }, [currentMonthTransactions]);
-
-  const cashSpent = useMemo(() => {
-    return currentMonthTransactions
-      .filter(t => t.paymentMode === 'Cash')
-      .reduce((sum, t) => sum + t.amount, 0);
-  }, [currentMonthTransactions]);
+  const { upiSpent, cashSpent } = useMemo(() => 
+    getPaymentModeBreakdown(currentMonthTransactions),
+    [currentMonthTransactions]
+  );
 
   const upiRemaining = upiBudget - upiSpent;
   const cashRemaining = cashBudget - cashSpent;
 
   // Today's spend breakdowns
-  const today = new Date().toISOString().split('T')[0];
-  const todaySpent = useMemo(() => {
-    return currentMonthTransactions.filter(t => t.date === today).reduce((s, t) => s + t.amount, 0);
-  }, [currentMonthTransactions, today]);
-  const todayUpiSpent = useMemo(() => {
-    return currentMonthTransactions.filter(t => t.date === today && t.paymentMode === 'UPI').reduce((s, t) => s + t.amount, 0);
-  }, [currentMonthTransactions, today]);
-  const todayCashSpent = useMemo(() => {
-    return currentMonthTransactions.filter(t => t.date === today && t.paymentMode === 'Cash').reduce((s, t) => s + t.amount, 0);
-  }, [currentMonthTransactions, today]);
+  const { total: todaySpent, upi: todayUpiSpent, cash: todayCashSpent } = useMemo(() => 
+    getTodaySpendingByMode(currentMonthTransactions), 
+    [currentMonthTransactions]
+  );
 
   // Daily average spend
-  const dailyAverage = useMemo(() => {
-    const daysWithSpending = new Set(currentMonthTransactions.map(t => t.date)).size;
-    return daysWithSpending > 0 ? totalSpent / daysWithSpending : 0;
-  }, [currentMonthTransactions, totalSpent]);
+  const dailyAverage = useMemo(() => 
+    calculateDailyAverage(currentMonthTransactions, totalSpent),
+    [currentMonthTransactions, totalSpent]
+  );
 
   // Spending velocity (projected month-end total)
-  const spendingVelocity = useMemo(() => {
-    const now = new Date();
-    const dayOfMonth = now.getDate();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    if (dayOfMonth === 0) return 0;
-    return (totalSpent / dayOfMonth) * daysInMonth;
-  }, [totalSpent]);
+  const spendingVelocity = useMemo(() => 
+    projectMonthEndSpend(totalSpent),
+    [totalSpent]
+  );
 
   // Budget health score (0-100)
-  const budgetHealthScore = useMemo(() => {
-    if (currentBudget === 0) return 50;
-    const now = new Date();
-    const dayOfMonth = now.getDate();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const expectedSpendRate = dayOfMonth / daysInMonth;
-    const actualSpendRate = totalSpent / currentBudget;
-    if (actualSpendRate >= 1) return 0;
-    const ratio = actualSpendRate / expectedSpendRate;
-    if (ratio <= 0.5) return 100;
-    if (ratio <= 0.8) return 85;
-    if (ratio <= 1.0) return 70;
-    if (ratio <= 1.2) return 50;
-    if (ratio <= 1.5) return 30;
-    return 10;
-  }, [totalSpent, currentBudget]);
+  const budgetHealthScore = useMemo(() => 
+    calculateBudgetHealthScore(totalSpent, currentBudget),
+    [totalSpent, currentBudget]
+  );
 
   const allCategories = useMemo(() => {
     return [...DEFAULT_CATEGORIES, ...state.customCategories];
   }, [state.customCategories]);
 
-  // Previous month carry forward calculation
   const previousMonthRemaining = useMemo(() => {
     const prevMonth = getPreviousMonthKey(currentMonth);
     const prevBudget = state.budgets[prevMonth]?.totalBudget || 0;
-    if (prevBudget === 0) return 0;
-    const prevTransactions = state.transactions.filter(t => t.date.startsWith(prevMonth));
-    const prevSpent = prevTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const prevSpent = state.transactions
+      .filter(t => t.date.startsWith(prevMonth))
+      .reduce((sum, t) => sum + t.amount, 0);
     return Math.max(0, prevBudget - prevSpent);
   }, [state.transactions, state.budgets, currentMonth]);
 
-  // ============ ACTIONS ============
-
-  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt' | 'userId'>) => {
+  // ACTIONS
+  const addTransaction = async (t: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
     if (!currentUser) return;
-    
-    const newTransaction: Transaction = {
-      ...transaction,
-      paymentMode: transaction.paymentMode || 'Cash',
-      id: crypto.randomUUID(),
-      userId: currentUser.uid,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
     try {
       await addDoc(collection(db, "expenses"), {
-        ...transaction,
-        paymentMode: transaction.paymentMode || 'Cash',
+        ...t,
         userId: currentUser.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        console.warn("Using local storage fallback for adding transaction.");
-        const updatedTransactions = [...state.transactions, newTransaction];
-        setState(prev => ({ ...prev, transactions: updatedTransactions }));
-        localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
-        toast.success("Saved to local storage (Firebase Offline)");
+        const newTxn: Transaction = {
+          ...t,
+          id: Math.random().toString(36).substring(7),
+          userId: currentUser.uid,
+          createdAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 } as any,
+          updatedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 } as any
+        };
+        const updatedTxns = [newTxn, ...state.transactions];
+        setState(prev => ({ ...prev, transactions: updatedTxns }));
+        localStorage.setItem('transactions', JSON.stringify(updatedTxns));
       } else {
         throw error;
       }
     }
   };
 
-  const bulkAddTransactions = async (transactions: Omit<Transaction, 'id' | 'createdAt' | 'userId'>[]) => {
+  const bulkAddTransactions = async (transactions: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>[]) => {
     if (!currentUser) return;
+    const batchSize = 500;
+    const toastId = toast.loading(`Importing ${transactions.length} expenses...`);
     
-    const newTransactions: Transaction[] = transactions.map(t => ({
-      ...t,
-      paymentMode: t.paymentMode || 'Cash',
-      id: crypto.randomUUID(),
-      userId: currentUser.uid,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }));
-
     try {
-      const batch = writeBatch(db);
-      transactions.forEach(t => {
-        const ref = doc(collection(db, "expenses"));
-        batch.set(ref, {
-          ...t,
-          paymentMode: t.paymentMode || 'Cash',
-          userId: currentUser.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+      for (let i = 0; i < transactions.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const chunk = transactions.slice(i, i + batchSize);
+        chunk.forEach(t => {
+          const ref = doc(collection(db, "expenses"));
+          batch.set(ref, {
+            ...t,
+            userId: currentUser.uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
         });
-      });
-      await batch.commit();
+        await batch.commit();
+      }
+      toast.success("Import successful!", { id: toastId });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        console.warn("Using local storage fallback for bulk adding transactions.");
-        const updatedTransactions = [...state.transactions, ...newTransactions];
-        setState(prev => ({ ...prev, transactions: updatedTransactions }));
-        localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
-        toast.success(`Imported ${transactions.length} items to local storage`);
+        toast.error("Cloud storage unavailable. Import failed.");
       } else {
+        toast.error("Import failed.", { id: toastId });
         throw error;
       }
     }
   };
 
   const editTransaction = async (id: string, updates: Partial<Transaction>) => {
+    if (!currentUser) return;
+    const { id: _, userId: __, ...cleanUpdates } = updates as any;
     try {
-      const ref = doc(db, "expenses", id);
-      await updateDoc(ref, {
-        ...updates,
+      await updateDoc(doc(db, "expenses", id), {
+        ...cleanUpdates,
         updatedAt: serverTimestamp()
       });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        console.warn("Using local storage fallback for editing transaction.");
-        const updatedTransactions = state.transactions.map(t => 
-          t.id === id ? { ...t, ...updates, updatedAt: new Date() } : t
-        );
-        setState(prev => ({ ...prev, transactions: updatedTransactions }));
-        localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+        const updatedTxns = state.transactions.map(t => t.id === id ? { ...t, ...updates } : t);
+        setState(prev => ({ ...prev, transactions: updatedTxns }));
+        localStorage.setItem('transactions', JSON.stringify(updatedTxns));
       } else {
         throw error;
       }
     }
   };
 
-  const deleteTransaction = async (id: string) => {
+  const deleteTransaction = async (id: string | string[]) => {
+    if (!currentUser) return;
+    const ids = Array.isArray(id) ? id : [id];
+    
     try {
-      await deleteDoc(doc(db, "expenses", id));
+      if (ids.length === 1) {
+        await deleteDoc(doc(db, "expenses", ids[0]));
+      } else {
+        const batch = writeBatch(db);
+        ids.forEach(innerId => {
+          batch.delete(doc(db, "expenses", innerId));
+        });
+        await batch.commit();
+      }
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        console.warn("Using local storage fallback for deleting transaction.");
-        const updatedTransactions = state.transactions.filter(t => t.id !== id);
-        setState(prev => ({ ...prev, transactions: updatedTransactions }));
-        localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+        const updatedTxns = state.transactions.filter(t => !ids.includes(t.id));
+        setState(prev => ({ ...prev, transactions: updatedTxns }));
+        localStorage.setItem('transactions', JSON.stringify(updatedTxns));
       } else {
         throw error;
       }
     }
   };
 
-  const updateBudget = async (month: string, newBudget: number, reason?: string) => {
+  const updateBudget = async (month: string, budget: number, reason: string = 'Budget update') => {
     if (!currentUser) return;
     const userRef = doc(db, "users", currentUser.uid);
     const existingBudget = state.budgets[month];
-    const previousBudget = existingBudget?.totalBudget || 0;
-
+    const newBudget = budget;
+    
     const newHistoryEntry = {
       date: new Date().toISOString(),
-      previousBudget,
+      previousBudget: existingBudget?.totalBudget || 0,
       newBudget,
       reason
     };
@@ -436,7 +379,6 @@ export function useExpenseTracker() {
       await updateDoc(userRef, { budgets: updatedBudgets });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        console.warn("Using local storage fallback for updating budget.");
         setState(prev => ({ ...prev, budgets: updatedBudgets }));
         localStorage.setItem('budgets', JSON.stringify(updatedBudgets));
       } else {
@@ -445,13 +387,11 @@ export function useExpenseTracker() {
     }
   };
 
-  // Carry forward remaining balance from previous month
   const carryForwardBudget = async (amount: number, target: 'budget' | 'savings') => {
     if (!currentUser) return;
     const userRef = doc(db, "users", currentUser.uid);
-    
     const existingBudget = state.budgets[currentMonth];
-    let updatedBudgets = { ...state.budgets };
+    const updatedBudgets = { ...state.budgets };
     let updatedSavings = state.savings;
 
     if (target === 'budget') {
@@ -463,8 +403,6 @@ export function useExpenseTracker() {
         carryForward: amount,
         carryForwardToSavings: existingBudget?.carryForwardToSavings || 0
       };
-
-      // Add a history entry
       updatedBudgets[currentMonth].history.push({
         date: new Date().toISOString(),
         previousBudget: currentTotal,
@@ -492,7 +430,7 @@ export function useExpenseTracker() {
     try {
       await updateDoc(userRef, { budgets: updatedBudgets, savings: updatedSavings });
       toast.success(target === 'budget' 
-        ? `₹${amount.toLocaleString()} added to this month's budget!` 
+        ? `₹${amount.toLocaleString()} added to budget!` 
         : `₹${amount.toLocaleString()} moved to savings!`
       );
     } catch (error: any) {
@@ -506,7 +444,6 @@ export function useExpenseTracker() {
     }
   };
 
-  // Update savings
   const updateSavings = async (newSavings: number) => {
     if (!currentUser) return;
     const userRef = doc(db, "users", currentUser.uid);
@@ -528,14 +465,10 @@ export function useExpenseTracker() {
     if (trimmed && !allCategories.includes(trimmed)) {
       const userRef = doc(db, "users", currentUser.uid);
       const updatedCategories = [...state.customCategories, trimmed];
-      
       try {
-        await updateDoc(userRef, {
-          customCategories: updatedCategories
-        });
+        await updateDoc(userRef, { customCategories: updatedCategories });
       } catch (error: any) {
         if (error?.code === 'permission-denied') {
-          console.warn("Using local storage fallback for adding custom category.");
           setState(prev => ({ ...prev, customCategories: updatedCategories }));
           localStorage.setItem('customCategories', JSON.stringify(updatedCategories));
         } else {
@@ -549,14 +482,10 @@ export function useExpenseTracker() {
     if (!currentUser) return;
     const updatedCategories = state.customCategories.filter(c => c !== name);
     const userRef = doc(db, "users", currentUser.uid);
-    
     try {
-      await updateDoc(userRef, {
-        customCategories: updatedCategories
-      });
+      await updateDoc(userRef, { customCategories: updatedCategories });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        console.warn("Using local storage fallback for deleting custom category.");
         setState(prev => ({ ...prev, customCategories: updatedCategories }));
         localStorage.setItem('customCategories', JSON.stringify(updatedCategories));
       } else {
@@ -564,8 +493,6 @@ export function useExpenseTracker() {
       }
     }
   };
-
-  // ============ RECURRING ACTIONS ============
 
   const addRecurringExpense = async (expense: Omit<RecurringExpense, 'id' | 'createdAt' | 'isActive'>) => {
     if (!currentUser) return;
@@ -575,17 +502,14 @@ export function useExpenseTracker() {
       isActive: true,
       createdAt: Date.now()
     };
-
     try {
       const userRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userRef, {
-        recurringExpenses: [...state.recurringExpenses, newRecurring]
-      });
+      await updateDoc(userRef, { recurringExpenses: [...state.recurringExpenses, newRecurring] });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        const updatedRecurring = [...state.recurringExpenses, newRecurring];
-        setState(prev => ({ ...prev, recurringExpenses: updatedRecurring }));
-        localStorage.setItem('recurringExpenses', JSON.stringify(updatedRecurring));
+        const updated = [...state.recurringExpenses, newRecurring];
+        setState(prev => ({ ...prev, recurringExpenses: updated }));
+        localStorage.setItem('recurringExpenses', JSON.stringify(updated));
       } else {
         throw error;
       }
@@ -594,21 +518,14 @@ export function useExpenseTracker() {
 
   const editRecurringExpense = async (id: string, updates: Partial<RecurringExpense>) => {
     if (!currentUser) return;
-    
+    const updated = state.recurringExpenses.map(r => r.id === id ? { ...r, ...updates } : r);
     try {
       const userRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userRef, {
-        recurringExpenses: state.recurringExpenses.map(r => 
-          r.id === id ? { ...r, ...updates } : r
-        )
-      });
+      await updateDoc(userRef, { recurringExpenses: updated });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        const updatedRecurring = state.recurringExpenses.map(r => 
-          r.id === id ? { ...r, ...updates } : r
-        );
-        setState(prev => ({ ...prev, recurringExpenses: updatedRecurring }));
-        localStorage.setItem('recurringExpenses', JSON.stringify(updatedRecurring));
+        setState(prev => ({ ...prev, recurringExpenses: updated }));
+        localStorage.setItem('recurringExpenses', JSON.stringify(updated));
       } else {
         throw error;
       }
@@ -617,17 +534,14 @@ export function useExpenseTracker() {
 
   const deleteRecurringExpense = async (id: string) => {
     if (!currentUser) return;
-    
+    const updated = state.recurringExpenses.filter(r => r.id !== id);
     try {
       const userRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userRef, {
-        recurringExpenses: state.recurringExpenses.filter(r => r.id !== id)
-      });
+      await updateDoc(userRef, { recurringExpenses: updated });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        const updatedRecurring = state.recurringExpenses.filter(r => r.id !== id);
-        setState(prev => ({ ...prev, recurringExpenses: updatedRecurring }));
-        localStorage.setItem('recurringExpenses', JSON.stringify(updatedRecurring));
+        setState(prev => ({ ...prev, recurringExpenses: updated }));
+        localStorage.setItem('recurringExpenses', JSON.stringify(updated));
       } else {
         throw error;
       }
@@ -636,28 +550,19 @@ export function useExpenseTracker() {
 
   const toggleRecurringExpense = async (id: string) => {
     if (!currentUser) return;
-    
+    const updated = state.recurringExpenses.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r);
     try {
       const userRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userRef, {
-        recurringExpenses: state.recurringExpenses.map(r => 
-          r.id === id ? { ...r, isActive: !r.isActive } : r
-        )
-      });
+      await updateDoc(userRef, { recurringExpenses: updated });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        const updatedRecurring = state.recurringExpenses.map(r => 
-          r.id === id ? { ...r, isActive: !r.isActive } : r
-        );
-        setState(prev => ({ ...prev, recurringExpenses: updatedRecurring }));
-        localStorage.setItem('recurringExpenses', JSON.stringify(updatedRecurring));
+        setState(prev => ({ ...prev, recurringExpenses: updated }));
+        localStorage.setItem('recurringExpenses', JSON.stringify(updated));
       } else {
         throw error;
       }
     }
   };
-
-  // ============ FAMILY WALLET ACTIONS ============
 
   const _updateFamilyMembers = async (updatedMembers: FamilyMember[]) => {
     if (!currentUser) return;
@@ -688,16 +593,14 @@ export function useExpenseTracker() {
       }] : [],
       createdAt: Date.now()
     };
-    const updated = [...state.familyMembers, newMember];
-    await _updateFamilyMembers(updated);
+    await _updateFamilyMembers([...state.familyMembers, newMember]);
     toast.success(`${name} added to family wallet!`);
   };
 
   const removeFamilyMember = async (id: string) => {
     const member = state.familyMembers.find(m => m.id === id);
-    const updated = state.familyMembers.filter(m => m.id !== id);
-    await _updateFamilyMembers(updated);
-    toast.success(`${member?.name || 'Member'} removed from family wallet`);
+    await _updateFamilyMembers(state.familyMembers.filter(m => m.id !== id));
+    toast.success(`${member?.name || 'Member'} removed`);
   };
 
   const modifyFamilyMemberAmount = async (id: string, amount: number, type: 'deposit' | 'withdraw', description: string = '') => {
@@ -708,7 +611,7 @@ export function useExpenseTracker() {
         id: crypto.randomUUID(),
         type,
         amount,
-        description: description || (type === 'deposit' ? 'Amount added' : 'Amount withdrawn'),
+        description: description || (type === 'deposit' ? 'Added' : 'Withdrawn'),
         date: new Date().toISOString().split('T')[0]
       };
       return { ...m, balance: newBalance, transactions: [...m.transactions, txn] };
@@ -718,146 +621,65 @@ export function useExpenseTracker() {
 
   const transferBetweenFamily = async (fromId: string, toId: string, amount: number) => {
     const fromMember = state.familyMembers.find(m => m.id === fromId);
-    const toMember = state.familyMembers.find(m => m.id === toId);
-    if (!fromMember || !toMember) return;
-    if (fromMember.balance < amount) {
-      toast.error('Insufficient balance for transfer');
+    if (!fromMember || fromMember.balance < amount) {
+      toast.error('Insufficient balance');
       return;
     }
-
     const updated = state.familyMembers.map(m => {
-      if (m.id === fromId) {
-        const txn: FamilyTransaction = {
-          id: crypto.randomUUID(),
-          type: 'transfer_out',
-          amount,
-          description: `Transfer to ${toMember.name}`,
-          date: new Date().toISOString().split('T')[0],
-          relatedMemberId: toId,
-          relatedMemberName: toMember.name
-        };
-        return { ...m, balance: m.balance - amount, transactions: [...m.transactions, txn] };
-      }
-      if (m.id === toId) {
-        const txn: FamilyTransaction = {
-          id: crypto.randomUUID(),
-          type: 'transfer_in',
-          amount,
-          description: `Transfer from ${fromMember.name}`,
-          date: new Date().toISOString().split('T')[0],
-          relatedMemberId: fromId,
-          relatedMemberName: fromMember.name
-        };
-        return { ...m, balance: m.balance + amount, transactions: [...m.transactions, txn] };
-      }
+      if (m.id === fromId) return { ...m, balance: m.balance - amount };
+      if (m.id === toId) return { ...m, balance: m.balance + amount };
       return m;
     });
     await _updateFamilyMembers(updated);
-    toast.success(`₹${amount.toLocaleString()} transferred from ${fromMember.name} to ${toMember.name}`);
+    toast.success('Transfer successful');
   };
 
   const transferFamilyToMain = async (memberId: string, amount: number) => {
     const member = state.familyMembers.find(m => m.id === memberId);
-    if (!member || member.balance < amount) {
-      toast.error('Insufficient balance');
-      return;
-    }
+    if (!member || member.balance < amount) return;
+    const updatedFamily = state.familyMembers.map(m => m.id === memberId ? { ...m, balance: m.balance - amount } : m);
+    await _updateFamilyMembers(updatedFamily);
+    await updateBudget(currentMonth, (state.budgets[currentMonth]?.totalBudget || 0) + amount, `Transfer from ${member.name}`);
+  };
 
-    // Deduct from family member
-    const updatedMembers = state.familyMembers.map(m => {
-      if (m.id !== memberId) return m;
-      const txn: FamilyTransaction = {
-        id: crypto.randomUUID(),
-        type: 'transfer_out',
-        amount,
-        description: 'Transfer to Main Wallet',
-        date: new Date().toISOString().split('T')[0]
-      };
-      return { ...m, balance: m.balance - amount, transactions: [...m.transactions, txn] };
-    });
+  const transferMainToFamily = async (memberId: string, amount: number) => {
+    const member = state.familyMembers.find(m => m.id === memberId);
+    if (!member) return;
+    const updatedFamily = state.familyMembers.map(m => m.id === memberId ? { ...m, balance: m.balance + amount } : m);
+    await _updateFamilyMembers(updatedFamily);
+    await updateBudget(currentMonth, Math.max(0, (state.budgets[currentMonth]?.totalBudget || 0) - amount), `Transfer to ${member.name}`);
+  };
 
-    // Add to current month budget
-    const existingBudget = state.budgets[currentMonth];
-    const currentTotal = existingBudget?.totalBudget || 0;
-    const updatedBudgets = {
-      ...state.budgets,
-      [currentMonth]: {
-        month: currentMonth,
-        totalBudget: currentTotal + amount,
-        history: [...(existingBudget?.history || []), {
-          date: new Date().toISOString(),
-          previousBudget: currentTotal,
-          newBudget: currentTotal + amount,
-          reason: `Transfer from ${member.name}'s family wallet`
-        }],
-        carryForward: existingBudget?.carryForward || 0,
-        carryForwardToSavings: existingBudget?.carryForwardToSavings || 0
-      }
-    };
-
+  const updateUpiBudget = async (month: string, amount: number) => {
     if (!currentUser) return;
-    const userRef = doc(db, "users", currentUser.uid);
+    const existing = state.budgets[month];
+    const updated = {
+      ...state.budgets,
+      [month]: { ...existing, month, totalBudget: existing?.totalBudget || 0, history: existing?.history || [], upiBudget: amount }
+    };
     try {
-      await updateDoc(userRef, { familyMembers: updatedMembers, budgets: updatedBudgets });
-      toast.success(`₹${amount.toLocaleString()} transferred from ${member.name} to main wallet`);
+      await updateDoc(doc(db, "users", currentUser.uid), { budgets: updated });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        setState(prev => ({ ...prev, familyMembers: updatedMembers, budgets: updatedBudgets }));
-        localStorage.setItem('familyMembers', JSON.stringify(updatedMembers));
-        localStorage.setItem('budgets', JSON.stringify(updatedBudgets));
+        setState(prev => ({ ...prev, budgets: updated }));
+        localStorage.setItem('budgets', JSON.stringify(updated));
       } else {
         throw error;
       }
     }
   };
 
-  const transferMainToFamily = async (memberId: string, amount: number) => {
-    const member = state.familyMembers.find(m => m.id === memberId);
-    if (!member) return;
-
-    // Add to family member
-    const updatedMembers = state.familyMembers.map(m => {
-      if (m.id !== memberId) return m;
-      const txn: FamilyTransaction = {
-        id: crypto.randomUUID(),
-        type: 'transfer_in',
-        amount,
-        description: 'Transfer from Main Wallet',
-        date: new Date().toISOString().split('T')[0]
-      };
-      return { ...m, balance: m.balance + amount, transactions: [...m.transactions, txn] };
-    });
-
-    // Deduct from current month budget
-    const existingBudget = state.budgets[currentMonth];
-    const currentTotal = existingBudget?.totalBudget || 0;
-    const newTotal = Math.max(0, currentTotal - amount);
-    const updatedBudgets = {
-      ...state.budgets,
-      [currentMonth]: {
-        month: currentMonth,
-        totalBudget: newTotal,
-        history: [...(existingBudget?.history || []), {
-          date: new Date().toISOString(),
-          previousBudget: currentTotal,
-          newBudget: newTotal,
-          reason: `Transfer to ${member.name}'s family wallet`
-        }],
-        carryForward: existingBudget?.carryForward || 0,
-        carryForwardToSavings: existingBudget?.carryForwardToSavings || 0
-      }
-    };
-
+  const removeUpiBudget = async (month: string) => {
     if (!currentUser) return;
-    const userRef = doc(db, "users", currentUser.uid);
+    const existing = state.budgets[month];
+    if (!existing) return;
+    const updated = { ...state.budgets, [month]: { ...existing, upiBudget: 0 } };
     try {
-      await updateDoc(userRef, { familyMembers: updatedMembers, budgets: updatedBudgets });
-      toast.success(`₹${amount.toLocaleString()} transferred from main wallet to ${member.name}`);
+      await updateDoc(doc(db, "users", currentUser.uid), { budgets: updated });
     } catch (error: any) {
       if (error?.code === 'permission-denied') {
-        setState(prev => ({ ...prev, familyMembers: updatedMembers, budgets: updatedBudgets }));
-        localStorage.setItem('familyMembers', JSON.stringify(updatedMembers));
-        localStorage.setItem('budgets', JSON.stringify(updatedBudgets));
+        setState(prev => ({ ...prev, budgets: updated }));
+        localStorage.setItem('budgets', JSON.stringify(updated));
       } else {
         throw error;
       }
@@ -878,54 +700,25 @@ export function useExpenseTracker() {
       .reduce((sum, r) => sum + r.amount, 0);
   }, [state.recurringExpenses]);
 
-  // UPI Budget management
-  const updateUpiBudget = async (month: string, amount: number) => {
-    if (!currentUser) return;
-    const userRef = doc(db, "users", currentUser.uid);
-    const existingBudget = state.budgets[month];
-    const updatedBudgets = {
-      ...state.budgets,
-      [month]: {
-        ...existingBudget,
-        month,
-        totalBudget: existingBudget?.totalBudget || 0,
-        history: existingBudget?.history || [],
-        upiBudget: amount
-      }
-    };
+  const syncLocalData = async () => {
+    const localData = localStorage.getItem('transactions');
+    if (!localData || !currentUser) return;
+    const transactions = JSON.parse(localData);
+    if (transactions.length === 0) return;
+    const toastId = toast.loading("Syncing data...");
     try {
-      await updateDoc(userRef, { budgets: updatedBudgets });
-      toast.success(`UPI budget updated to ₹${amount.toLocaleString()}`);
-    } catch (error: any) {
-      if (error?.code === 'permission-denied') {
-        setState(prev => ({ ...prev, budgets: updatedBudgets }));
-        localStorage.setItem('budgets', JSON.stringify(updatedBudgets));
-      } else {
-        throw error;
-      }
-    }
-  };
-
-  const removeUpiBudget = async (month: string) => {
-    if (!currentUser) return;
-    const userRef = doc(db, "users", currentUser.uid);
-    const existingBudget = state.budgets[month];
-    if (!existingBudget) return;
-    const { upiBudget: _, ...rest } = existingBudget;
-    const updatedBudgets = {
-      ...state.budgets,
-      [month]: { ...rest, upiBudget: 0 }
-    };
-    try {
-      await updateDoc(userRef, { budgets: updatedBudgets });
-      toast.success('UPI budget removed');
-    } catch (error: any) {
-      if (error?.code === 'permission-denied') {
-        setState(prev => ({ ...prev, budgets: updatedBudgets }));
-        localStorage.setItem('budgets', JSON.stringify(updatedBudgets));
-      } else {
-        throw error;
-      }
+      const batch = writeBatch(db);
+      transactions.forEach((t: any) => {
+        const ref = doc(collection(db, "expenses"));
+        const { id: _, ...data } = t;
+        batch.set(ref, { ...data, userId: currentUser.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      });
+      await batch.commit();
+      localStorage.removeItem('transactions');
+      toast.success("Sync complete!", { id: toastId });
+      setTimeout(() => window.location.reload(), 1000);
+    } catch {
+      toast.error("Sync failed.", { id: toastId });
     }
   };
 
@@ -969,7 +762,6 @@ export function useExpenseTracker() {
     deleteRecurringExpense,
     toggleRecurringExpense,
     totalFixedExpenses,
-    // Family wallet
     addFamilyMember,
     removeFamilyMember,
     modifyFamilyMemberAmount,
@@ -977,26 +769,6 @@ export function useExpenseTracker() {
     transferFamilyToMain,
     transferMainToFamily,
     hasLocalData: localStorage.getItem('transactions') !== null && JSON.parse(localStorage.getItem('transactions') || '[]').length > 0,
-    syncLocalData: async () => {
-      const localData = localStorage.getItem('transactions');
-      if (!localData || !currentUser) return;
-      const transactions = JSON.parse(localData);
-      if (transactions.length === 0) return;
-      const toastId = toast.loading("Syncing data to cloud...");
-      try {
-        const batch = writeBatch(db);
-        transactions.forEach((t: any) => {
-          const ref = doc(collection(db, "expenses"));
-          const { id, ...data } = t;
-          batch.set(ref, { ...data, userId: currentUser.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-        });
-        await batch.commit();
-        localStorage.removeItem('transactions');
-        toast.success("Sync complete!", { id: toastId });
-        setTimeout(() => window.location.reload(), 1000);
-      } catch (error) {
-        toast.error("Sync failed.", { id: toastId });
-      }
-    }
+    syncLocalData
   };
 }
