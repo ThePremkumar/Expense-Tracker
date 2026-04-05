@@ -22,6 +22,7 @@ export interface Transaction {
   updatedAt?: any; // Firestore Timestamp
   userId: string;
   isRecurring?: boolean;
+  quantity?: number; // Added quantity field
 }
 
 export interface BudgetAdjustment {

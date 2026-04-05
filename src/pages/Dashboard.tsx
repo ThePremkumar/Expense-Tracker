@@ -3,37 +3,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import {
   PlusIcon,
-  TrendingDownIcon,
-  TrendingUpIcon,
-  CheckCircle2Icon,
-  LightbulbIcon,
   PieChart as PieChartIcon,
-  WalletIcon,
   CalendarIcon,
-  BanknoteIcon,
-  SmartphoneIcon,
   ZapIcon,
   ActivityIcon,
-  GaugeIcon,
   TargetIcon,
-  HelpCircleIcon,
-  AlertTriangleIcon,
   DownloadIcon,
+  WalletIcon,
   ReceiptIcon,
   Edit2Icon,
   Trash2Icon,
-  AlertCircleIcon
+  ArrowRightIcon
 } from 'lucide-react';
-import { SummaryStat, BudgetProgressCard } from '../components/DashboardComponents';
+import { SummaryStat } from '../components/DashboardComponents';
+import { SmartInsights } from '../components/SmartInsights';
 import {
   formatCurrency,
-  formatDate,
   getCategoryColor,
   groupTransactionsByCategory,
   groupTransactionsByDate,
   exportToCSV
 } from '../utils/helpers';
-import { formatDistanceToNow } from 'date-fns';
 import { Transaction, MonthlyBudget } from '../types';
 import {
   PieChart,
@@ -41,31 +31,19 @@ import {
   Cell,
   ResponsiveContainer,
   Tooltip,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
-  ReferenceLine
+  ReferenceLine,
+  AreaChart,
+  Area
 } from 'recharts';
-import { SmartInsights } from '../components/SmartInsights';
 
 interface DashboardProps {
   totalBudget: number;
   totalSpent: number;
   remainingBalance: number;
-  upiBudget?: number;
-  cashBudget?: number;
-  upiSpent?: number;
-  cashSpent?: number;
-  upiRemaining?: number;
-  cashRemaining?: number;
-  todaySpent?: number;
-  todayUpiSpent?: number;
-  todayCashSpent?: number;
-  dailyAverage?: number;
-  spendingVelocity?: number;
-  budgetHealthScore?: number;
+  todaySpent: number;
   recentTransactions: Transaction[];
   onAddExpense: () => void;
   onViewAll: () => void;
@@ -81,18 +59,7 @@ export function Dashboard({
   totalBudget,
   totalSpent,
   remainingBalance,
-  upiBudget = 0,
-  cashBudget = 0,
-  upiSpent = 0,
-  cashSpent = 0,
-  upiRemaining = 0,
-  cashRemaining = 0,
-  todaySpent = 0,
-  todayUpiSpent = 0,
-  todayCashSpent = 0,
-  dailyAverage = 0,
-  spendingVelocity = 0,
-  budgetHealthScore = 50,
+  todaySpent,
   recentTransactions,
   onAddExpense,
   onViewAll,
@@ -106,8 +73,7 @@ export function Dashboard({
 
   const [transactionModeFilter, setTransactionModeFilter] = useState<'all' | 'UPI' | 'Cash'>('all');
 
-  const spentPercentage = totalBudget > 0 ? totalSpent / totalBudget * 100 : 0;
-  const isNearLimit = spentPercentage > 85;
+  const spentPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
   const isOverLimit = spentPercentage >= 100;
   
   const filteredTransactions = useMemo(() => {
@@ -122,7 +88,7 @@ export function Dashboard({
     exportToCSV(recentTransactions, filename);
   };
 
-  // Cumulative spending data for line chart with remaining balance
+  // Cumulative spending data for area chart
   const cumulativeData = useMemo(() => {
     const dailyData = groupTransactionsByDate(recentTransactions);
     let cumulative = 0;
@@ -142,447 +108,218 @@ export function Dashboard({
     return data;
   }, [recentTransactions, totalBudget]);
 
-  // Health score color
-  const getHealthColor = (score: number) => {
-    if (score >= 70) return { text: 'text-emerald-600', bg: 'bg-emerald-500', label: 'Healthy' };
-    if (score >= 50) return { text: 'text-sky-600', bg: 'bg-sky-500', label: 'Moderate' };
-    if (score >= 30) return { text: 'text-amber-600', bg: 'bg-amber-500', label: 'Warning' };
-    return { text: 'text-rose-600', bg: 'bg-rose-500', label: 'Critical' };
-  };
-  const healthInfo = getHealthColor(budgetHealthScore);
-
-  const pmTip = useMemo(() => {
-    if (totalBudget === 0) return { icon: HelpCircleIcon, title: 'Set a Budget', tip: 'Start by setting a monthly budget to get personalized financial tips.', bg: 'bg-slate-50', text: 'text-slate-700' };
-    if (isOverLimit) return { icon: AlertTriangleIcon, title: 'Budget Breached', tip: 'You have exceeded your total limit. Stop all non-essential spending immediately.', bg: 'bg-rose-50', text: 'text-rose-700' };
-    if (spendingVelocity > totalBudget && totalBudget > 0) return { icon: ZapIcon, title: 'Velocity Warning', tip: 'You are spending faster than your budget allows. Slow down to avoid overshooting.', bg: 'bg-amber-50', text: 'text-amber-700' };
-    if (budgetHealthScore > 85) return { icon: CheckCircle2Icon, title: 'Great Progress', tip: 'Your financial discipline is top-notch! Consider moving surplus to savings.', bg: 'bg-emerald-50', text: 'text-emerald-700' };
-    if (budgetHealthScore > 60) return { icon: LightbulbIcon, title: 'Steady Pace', tip: 'You are on track. Maintain this momentum to reach your monthly goals.', bg: 'bg-indigo-50', text: 'text-indigo-700' };
-    return { icon: TargetIcon, title: 'Budget Advisory', tip: 'Check your mode efficiency. Try using Cash for small expenses to stay in control.', bg: 'bg-sky-50', text: 'text-sky-700' };
-  }, [budgetHealthScore, totalBudget, spendingVelocity, isOverLimit]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500">Overview of your monthly spending</p>
+    <div className="space-y-8 entry-animation">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] bg-indigo-500/10 px-2 py-0.5 rounded-md">Financial Core</span>
+          </div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Command Center</h1>
+          <p className="text-slate-400 font-bold text-sm tracking-tight flex items-center gap-1.5">
+            <CalendarIcon className="w-3.5 h-3.5" /> Operations for {currentMonth}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={handleExport} className="shadow-sm">
-            <DownloadIcon className="w-4 h-4 mr-2" />
-            Export CSV
+        <div className="flex items-center gap-3">
+          <Button variant="secondary" onClick={handleExport} className="glass-card font-black text-xs uppercase tracking-widest px-6 h-12">
+            <DownloadIcon className="w-4 h-4 mr-2" /> Export
           </Button>
-          <Button onClick={onAddExpense} className="shadow-sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add Expense
+          <Button onClick={onAddExpense} className="premium-gradient font-black text-xs uppercase tracking-widest px-6 h-12 shadow-xl shadow-indigo-500/20">
+            <PlusIcon className="w-4 h-4 mr-2" /> New Expense
           </Button>
         </div>
       </div>
 
-      {/* Dynamic PM Tip */}
-      <Card className={`border-none ${pmTip.bg} overflow-hidden shadow-sm animate-in slide-in-from-top-1 duration-500`}>
-        <CardContent className="p-4 flex items-center gap-4">
-          <div className={`${pmTip.bg.replace('50', '100')} p-3 rounded-xl ${pmTip.text}`}>
-            <pmTip.icon className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className={`text-sm font-bold ${pmTip.text}`}>{pmTip.title}</h4>
-            <p className="text-xs text-slate-600 mt-0.5 leading-relaxed font-medium">{pmTip.tip}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Alert for near/over budget */}
-      {(isNearLimit || isOverLimit) && totalBudget > 0 &&
-        <div className={`p-4 rounded-xl flex items-start space-x-3 ${isOverLimit ? 'bg-rose-50 text-rose-800 border border-rose-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
-          <AlertCircleIcon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isOverLimit ? 'text-rose-600' : 'text-amber-600'}`} />
-          <div>
-            <h4 className="font-semibold">
-              {isOverLimit ? 'Budget Exceeded!' : 'Approaching Budget Limit'}
-            </h4>
-            <p className="text-sm mt-1">
-              {isOverLimit
-                ? `You have exceeded your monthly budget by ${formatCurrency(Math.abs(remainingBalance))}.`
-                : `You have spent ${spentPercentage.toFixed(1)}% of your budget. Only ${formatCurrency(remainingBalance)} remaining.`}
-            </p>
-          </div>
-        </div>
-      }
-
-      {/* ===== OVERALL ROW ===== */}
-      <div>
-        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">📊 Overall Summary</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <SummaryStat 
-            label="Total Budget" 
-            value={formatCurrency(totalBudget)} 
-            icon={WalletIcon} 
-            trend="neutral"
-          />
-          <SummaryStat 
-            label="Total Spent" 
-            value={formatCurrency(totalSpent)} 
-            subValue={`${spentPercentage.toFixed(0)}% of limit`}
-            icon={TrendingDownIcon} 
-            trend={isOverLimit ? 'down' : 'neutral'}
-          />
-          <SummaryStat 
-            label="Remaining" 
-            value={formatCurrency(remainingBalance)} 
-            icon={TrendingUpIcon} 
-            trend={remainingBalance < 0 ? 'down' : 'up'}
-          />
-          <SummaryStat 
-            label="Today's Spend" 
-            value={formatCurrency(todaySpent)} 
-            icon={CalendarIcon} 
-            trend="neutral"
-          />
-        </div>
+      {/* TOP STATS ROW */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <SummaryStat label="Monthly Cap" value={formatCurrency(totalBudget)} icon={TargetIcon} trend="neutral" />
+        <SummaryStat label="Total Flow" value={formatCurrency(totalSpent)} subValue={`${spentPercentage.toFixed(0)}% Utilized`} icon={ActivityIcon} trend={isOverLimit ? 'down' : 'neutral'} />
+        <SummaryStat label="Free Capital" value={formatCurrency(Math.max(0, remainingBalance))} icon={WalletIcon} trend={remainingBalance < 0 ? 'down' : 'up'} />
+        <SummaryStat label="Today's Spend" value={formatCurrency(todaySpent)} icon={ZapIcon} trend="neutral" />
       </div>
 
-      {/* ===== CASH & UPI BREAKDOWN ROW ===== */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cash Section */}
-        <div>
-          <h2 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-            <BanknoteIcon className="w-3.5 h-3.5" /> Cash Breakdown
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            <BudgetProgressCard
-              title="Cash Budget"
-              budget={cashBudget}
-              spent={cashSpent}
-              remaining={cashRemaining}
-              primaryColor="bg-gradient-to-br from-emerald-600 to-teal-700"
-              icon={BanknoteIcon}
-            />
-            <div className="flex flex-col gap-3">
-               <SummaryStat label="Today Cash" value={formatCurrency(todayCashSpent)} icon={CalendarIcon} trend="neutral" />
-               <SummaryStat label="Cash Items" value={recentTransactions.filter(t => t.paymentMode === 'Cash').length.toString()} icon={ReceiptIcon} trend="neutral" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* CENTER LEFT - MAIN FLOW CHART */}
+        <Card className="lg:col-span-2 glass-card border-none shadow-2xl overflow-hidden">
+          <CardHeader className="p-8 pb-2 flex flex-row items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-black tracking-tight">Cumulative Capital Flow</CardTitle>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Real-time spending trajectory</p>
             </div>
-          </div>
-        </div>
-
-        {/* UPI Section */}
-        <div>
-          <h2 className="text-xs font-bold text-violet-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-            <SmartphoneIcon className="w-3.5 h-3.5" /> UPI Breakdown
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            <BudgetProgressCard
-              title="UPI Budget"
-              budget={upiBudget}
-              spent={upiSpent}
-              remaining={upiRemaining}
-              primaryColor="bg-gradient-to-br from-violet-600 to-purple-700"
-              icon={SmartphoneIcon}
-            />
-            <div className="flex flex-col gap-3">
-               <SummaryStat label="Today UPI" value={formatCurrency(todayUpiSpent)} icon={CalendarIcon} trend="neutral" />
-               <SummaryStat label="UPI Items" value={recentTransactions.filter(t => t.paymentMode === 'UPI').length.toString()} icon={SmartphoneIcon} trend="neutral" />
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Spent</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance</span>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ===== SMART STATS & PERFORMANCE ROW (Bonus Features) ===== */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {/* Budget Health Score */}
-        <Card className="border-none shadow-sm bg-slate-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <GaugeIcon className={`w-4 h-4 ${healthInfo.text}`} />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Health Score</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className={`text-2xl font-bold ${healthInfo.text}`}>{budgetHealthScore}</span>
-              <span className="text-xs text-slate-400 mb-1">/100</span>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={cumulativeData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorSpent" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorRemaining" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }} tickFormatter={(value) => `₹${value}`} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '20px' }}
+                    labelStyle={{ fontWeight: 800, marginBottom: '8px', color: '#1E293B' }}
+                    formatter={(value: any) => [`₹${(value as number).toLocaleString()}`, '']}
+                  />
+                  {totalBudget > 0 && <ReferenceLine y={totalBudget} stroke="#EF4444" strokeDasharray="10 10" strokeWidth={2} label={{ value: 'LIMIT', fill: '#EF4444', fontSize: 10, fontWeight: 900 }} />}
+                  <Area type="monotone" dataKey="spent" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorSpent)" activeDot={{ r: 8, fill: '#6366f1', strokeWidth: 4, stroke: '#fff' }} />
+                  {totalBudget > 0 && <Area type="monotone" dataKey="remaining" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorRemaining)" activeDot={{ r: 8, fill: '#10b981', strokeWidth: 4, stroke: '#fff' }} />}
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* Daily Average */}
-        <Card className="border-none shadow-sm bg-slate-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ActivityIcon className="w-4 h-4 text-sky-600" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Daily Avg</span>
+        {/* CATEGORY DONUT - MOVED UP */}
+        <Card className="glass-card border-none shadow-2xl overflow-hidden p-8 flex flex-col justify-center">
+            <div className="space-y-1 mb-8">
+              <CardTitle className="text-lg font-black tracking-tight">Category Distribution</CardTitle>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Weight split by sector</p>
             </div>
-            <p className="text-xl font-bold text-sky-700">{formatCurrency(dailyAverage)}</p>
-          </CardContent>
-        </Card>
-
-        {/* Projected Spend */}
-        <Card className="border-none shadow-sm bg-slate-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ZapIcon className="w-4 h-4 text-amber-600" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Projected</span>
-            </div>
-            <p className={`text-xl font-bold ${spendingVelocity > totalBudget && totalBudget > 0 ? 'text-rose-600' : 'text-amber-700'}`}>
-              {formatCurrency(spendingVelocity)}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Mode Efficiency Insight */}
-        <Card className="border-none shadow-sm bg-slate-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TargetIcon className="w-4 h-4 text-indigo-600" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mode Burn</span>
-            </div>
-            <p className="text-sm font-bold text-slate-700">
-              {upiSpent > cashSpent ? 'UPI Heavy' : cashSpent > upiSpent ? 'Cash Heavy' : 'Balanced'}
-            </p>
-            <p className="text-[10px] text-slate-400 mt-1">Which mode burns faster</p>
-          </CardContent>
-        </Card>
-
-        {/* Savings Rate */}
-        <Card className="border-none shadow-sm bg-slate-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUpIcon className="w-4 h-4 text-emerald-600" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Saved</span>
-            </div>
-            <p className={`text-xl font-bold ${remainingBalance > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-              {totalBudget > 0 ? `${Math.max(0, 100 - spentPercentage).toFixed(0)}%` : '—'}
-            </p>
-          </CardContent>
+            {categoryData.length > 0 ? (
+              <>
+                <div className="h-56 w-full mb-8">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value" stroke="none">
+                        {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={getCategoryColor(entry.name)} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 800 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-3">
+                  {categoryData.slice(0, 4).map((item) => (
+                    <div key={item.name} className="flex items-center justify-between group">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getCategoryColor(item.name) }} />
+                        <span className="text-[11px] font-bold text-slate-500 tracking-tight group-hover:text-slate-900 transition-colors">{item.name}</span>
+                      </div>
+                      <span className="text-xs font-black text-slate-800 tracking-tighter">{formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-64 flex flex-col items-center justify-center text-slate-300">
+                <PieChartIcon className="w-12 h-12 mb-3 opacity-20" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">Awaiting sector data</span>
+              </div>
+            )}
         </Card>
       </div>
 
-      {cumulativeData.length > 1 &&
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Spending Trend</CardTitle>
-              <div className="flex items-center gap-4 text-xs">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-0.5 rounded-full bg-indigo-500" />
-                  <span className="text-slate-500">Spent</span>
-                </div>
-                {totalBudget > 0 &&
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-0.5 rounded-full bg-emerald-500" />
-                    <span className="text-slate-500">Remaining</span>
-                  </div>
-                }
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={cumulativeData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`} />
-                    <Tooltip
-                      formatter={(value: number, name: string) => [
-                        formatCurrency(value),
-                        name === 'spent' ? 'Cumulative Spent' : name === 'remaining' ? 'Remaining Balance' : 'Today\'s Spend'
-                      ]}
-                      labelFormatter={(label) => `Day ${label}`}
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px -1px rgb(0 0 0 / 0.15)', padding: '12px 16px' }}
-                    />
-                    {totalBudget > 0 &&
-                      <ReferenceLine y={totalBudget} stroke="#f43f5e" strokeDasharray="5 5" label={{ value: 'Limit', fill: '#f43f5e', fontSize: 10 }} />
-                    }
-                    <Line type="monotone" dataKey="spent" name="spent" stroke="#6366f1" strokeWidth={2.5} dot={{ fill: '#6366f1', strokeWidth: 0, r: 4 }} activeDot={{ r: 6, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }} />
-                    {totalBudget > 0 &&
-                      <Line type="monotone" dataKey="remaining" name="remaining" stroke="#10b981" strokeWidth={2.5} strokeDasharray="6 3" dot={{ fill: '#10b981', strokeWidth: 0, r: 4 }} activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} />
-                    }
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle>Budget vs Reality</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col items-center justify-center p-6">
-              <div className="h-56 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie 
-                      data={[
-                        { name: 'UPI Spent', value: upiSpent, color: '#8b5cf6' },
-                        { name: 'UPI Left', value: Math.max(0, upiRemaining), color: '#ede9fe' },
-                        { name: 'Cash Spent', value: cashSpent, color: '#10b981' },
-                        { name: 'Cash Left', value: Math.max(0, cashRemaining), color: '#ecfdf5' },
-                      ]} 
-                      cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={2} dataKey="value" stroke="none"
-                    >
-                      {[
-                        { color: '#8b5cf6' }, { color: '#00000010' },
-                        { color: '#10b981' }, { color: '#00000010' }
-                      ].map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={['#8b5cf6', '#ede9fe', '#10b981', '#ecfdf5'][index]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="w-full space-y-2 mt-4">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-violet-500" /> UPI Efficiency
-                  </span>
-                  <span className="font-bold text-slate-700">{upiBudget > 0 ? `${((upiSpent/upiBudget)*100).toFixed(0)}%` : '0%'}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-medium flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" /> Cash Efficiency
-                  </span>
-                  <span className="font-bold text-slate-700">{cashBudget > 0 ? `${((cashSpent/cashBudget)*100).toFixed(0)}%` : '0%'}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      }
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Transactions */}
-        <Card className="lg:col-span-2 flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-4">
-              <CardTitle>Recent Transactions</CardTitle>
-              <div className="hidden sm:flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+      {/* RECENT ACTIVITY */}
+      <div className="space-y-8">
+        <Card className="glass-card border-none shadow-2xl overflow-hidden">
+          <CardHeader className="p-8 pb-4 flex flex-row items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-black tracking-tight tracking-tight">Financial Ledger</CardTitle>
+              <div className="flex gap-2">
                 {(['all', 'UPI', 'Cash'] as const).map(mode => (
                   <button
                     key={mode}
                     onClick={() => setTransactionModeFilter(mode)}
-                    className={`px-3 py-1 text-[10px] font-bold rounded-lg transition-all ${
+                    className={`px-3 py-1 text-[9px] font-black rounded-full uppercase tracking-widest transition-all ${
                       transactionModeFilter === mode 
-                        ? 'bg-white text-indigo-600 shadow-sm' 
+                        ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/10' 
                         : 'text-slate-400 hover:text-slate-600'
                     }`}
                   >
-                    {mode === 'all' ? 'All' : mode}
+                    {mode}
                   </button>
                 ))}
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={onViewAll}>
-              View All
+            <Button variant="ghost" size="sm" className="font-bold text-xs uppercase tracking-widest text-indigo-600 hover:text-indigo-700" onClick={onViewAll}>
+              Full Ledger
             </Button>
           </CardHeader>
-          <CardContent className="flex-1 p-0">
+          <CardContent className="p-0">
             {filteredTransactions.length > 0 ? (
               <div className="divide-y divide-slate-100">
                 {filteredTransactions.slice(0, 5).map((t: Transaction) => (
-                  <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
-                    <div className="flex items-center space-x-4">
+                  <div key={t.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-all duration-300 group">
+                    <div className="flex items-center space-x-5">
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg transform group-hover:scale-110 transition-transform duration-500"
                         style={{ backgroundColor: getCategoryColor(t.category) }}>
                         {t.category.charAt(0)}
                       </div>
-                      <div>
-                        <p className="font-medium text-slate-900">{t.title}</p>
-                        <div className="flex items-center text-xs text-slate-500 space-x-2">
-                          <span>{t.category}</span>
+                      <div className="space-y-0.5">
+                        <p className="font-extrabold text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">{t.title}</p>
+                        <div className="flex items-center text-[10px] font-bold text-slate-400 space-x-2 tracking-widest uppercase">
+                          <span className="text-slate-800">{t.category}</span>
                           <span>•</span>
-                          <span>{t.createdAt?.seconds
-                            ? formatDistanceToNow(t.createdAt.seconds * 1000, { addSuffix: true })
-                            : formatDate(t.date)}</span>
-                          <span>•</span>
-                          <span className={`font-semibold ${t.paymentMode === 'UPI' ? 'text-violet-500' : 'text-emerald-500'}`}>
-                            {t.paymentMode === 'UPI' ? '📱 UPI' : '💵 Cash'}
+                          <span className="px-1.5 py-0.5 rounded-md border bg-slate-50 text-slate-500 border-slate-100 font-black">
+                            QTY: {t.quantity || 1}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center space-x-1 transition-opacity">
-                        <button onClick={() => onEdit(t)} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Edit">
-                          <Edit2Icon className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => { if (window.confirm('Are you sure you want to delete this expense?')) onDelete(t.id); }} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Delete">
-                          <Trash2Icon className="w-3.5 h-3.5" />
-                        </button>
+                    <div className="flex items-center space-x-5">
+                      <div className="text-right flex flex-col items-end">
+                        <span className="font-black text-lg text-slate-900 tracking-tighter">-{formatCurrency(t.amount)}</span>
+                        <span className={`text-[9px] font-black uppercase tracking-widest ${t.paymentMode === 'UPI' ? 'text-indigo-400' : 'text-emerald-400'}`}>
+                          {t.paymentMode} Flow
+                        </span>
                       </div>
-                      <span className="font-semibold text-slate-900">
-                        -{formatCurrency(t.amount)}
-                      </span>
+                      <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-2 group-hover:translate-x-0">
+                        <button onClick={() => onEdit(t)} className="p-1.5 text-slate-300 hover:text-indigo-600 transition-colors"><Edit2Icon className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => { if (window.confirm('Delete entry?')) onDelete(t.id); }} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash2Icon className="w-3.5 h-3.5" /></button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="p-8 text-center text-slate-500 flex flex-col items-center justify-center h-full">
-                <ReceiptIcon className="w-12 h-12 text-slate-300 mb-3" />
-                <p>No transactions match your filter.</p>
-                <Button variant="ghost" size="sm" className="mt-2" onClick={() => setTransactionModeFilter('all')}>
-                  Clear Filter
-                </Button>
+              <div className="p-20 text-center flex flex-col items-center justify-center h-full">
+                <div className="w-16 h-16 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4"><ReceiptIcon className="w-8 h-8 text-slate-200" /></div>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No matching operations recorded</p>
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Mini Chart */}
-        <Card className="flex flex-col">
-          <CardHeader>
-            <CardTitle>Spend by Category</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col items-center justify-center p-6">
-            {categoryData.length > 0 ?
-              <>
-                <div className="h-48 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
-                        {categoryData.map((entry, index) =>
-                          <Cell key={`cell-${index}`} fill={getCategoryColor(entry.name)} />
-                        )}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-4 w-full space-y-2">
-                  {categoryData.slice(0, 3).map((item) =>
-                    <div key={item.name} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getCategoryColor(item.name) }} />
-                        <span className="text-slate-600 truncate max-w-[100px]">{item.name}</span>
-                      </div>
-                      <span className="font-medium text-slate-900">{formatCurrency(item.value)}</span>
-                    </div>
-                  )}
-                </div>
-              </> :
-              <div className="text-center text-slate-500">
-                <PieChartIcon className="w-12 h-12 text-slate-300 mb-3 mx-auto" />
-                <p>Not enough data</p>
-              </div>
-            }
-          </CardContent>
-        </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Smart Insights</CardTitle>
-          <Button variant="ghost" size="sm" onClick={onViewInsights}>
-            View Detailed Insights
+      {/* BOTTOM SMART INSIGHTS PANEL */}
+      <Card className="glass-card border-none shadow-2xl p-8">
+        <div className="flex flex-row items-center justify-between mb-8">
+          <div className="space-y-1">
+            <CardTitle className="text-xl font-black tracking-tight">Intelligence Feed</CardTitle>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Algorithmic financial insights</p>
+          </div>
+          <Button variant="ghost" size="sm" className="font-bold text-xs uppercase tracking-widest text-indigo-600" onClick={onViewInsights}>
+            Full Analysis
           </Button>
-        </CardHeader>
-        <CardContent>
-          <SmartInsights
+        </div>
+        <SmartInsights
             allTransactions={allTransactions}
             allBudgets={allBudgets}
             currentMonth={currentMonth}
             maxInsights={4}
           />
-        </CardContent>
       </Card>
     </div>
   );

@@ -8,13 +8,12 @@ import { Signup } from './pages/Signup';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
-import { Reports } from './pages/Reports';
-import { FixedExpenses } from './pages/FixedExpenses';
-import { YearlySummary } from './pages/YearlySummary';
 import { Insights } from './pages/Insights';
 import { BudgetSettings } from './pages/BudgetSettings';
-import { UPITracker } from './pages/UPITracker';
 import { FamilyWallet } from './pages/FamilyWallet';
+import { FixedExpenses } from './pages/FixedExpenses';
+import { Reports } from './pages/Reports';
+import { YearlySummary } from './pages/YearlySummary';
 import { useExpenseTracker } from './hooks/useExpenseTracker';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
@@ -30,19 +29,8 @@ function AppContent() {
     currentMonthTransactions,
     totalSpent,
     currentBudget,
-    upiBudget,
-    cashBudget,
     remainingBalance,
-    upiSpent,
-    cashSpent,
-    upiRemaining,
-    cashRemaining,
     todaySpent,
-    todayUpiSpent,
-    todayCashSpent,
-    dailyAverage,
-    spendingVelocity,
-    budgetHealthScore,
     availableMonths,
     categories,
     addTransaction,
@@ -50,14 +38,7 @@ function AppContent() {
     editTransaction,
     deleteTransaction,
     isLoaded,
-    totalFixedExpenses,
-    addRecurringExpense,
-    editRecurringExpense,
-    toggleRecurringExpense,
-    deleteRecurringExpense,
     updateBudget,
-    updateUpiBudget,
-    removeUpiBudget,
     carryForwardBudget,
     previousMonthRemaining,
     updateSavings,
@@ -67,14 +48,20 @@ function AppContent() {
     addFamilyMember,
     removeFamilyMember,
     modifyFamilyMemberAmount,
+    transferMainToFamily,
     transferBetweenFamily,
     transferFamilyToMain,
-    transferMainToFamily,
     hasLocalData,
-    syncLocalData
+    syncLocalData,
+    // Recurring
+    addRecurringExpense,
+    editRecurringExpense,
+    deleteRecurringExpense,
+    toggleRecurringExpense,
+    totalFixedExpenses
   } = useExpenseTracker();
 
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'transactions' | 'reports' | 'fixed' | 'yearly' | 'insights' | 'settings' | 'upi' | 'family'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'transactions' | 'insights' | 'settings' | 'family' | 'fixed-expenses' | 'reports' | 'yearly-summary'>('dashboard');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -128,22 +115,11 @@ function AppContent() {
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
 
           {currentTab === 'dashboard' && (
-            <Dashboard
+            <Dashboard 
               totalBudget={currentBudget}
               totalSpent={totalSpent}
               remainingBalance={remainingBalance}
-              upiBudget={upiBudget}
-              cashBudget={cashBudget}
-              upiSpent={upiSpent}
-              cashSpent={cashSpent}
-              upiRemaining={upiRemaining}
-              cashRemaining={cashRemaining}
               todaySpent={todaySpent}
-              todayUpiSpent={todayUpiSpent}
-              todayCashSpent={todayCashSpent}
-              dailyAverage={dailyAverage}
-              spendingVelocity={spendingVelocity}
-              budgetHealthScore={budgetHealthScore}
               recentTransactions={currentMonthTransactions}
               onAddExpense={handleOpenAddModal}
               onViewAll={() => setCurrentTab('transactions')}
@@ -157,47 +133,20 @@ function AppContent() {
           )}
 
           {currentTab === 'transactions' && (
-            <Transactions
-              transactions={currentMonthTransactions}
+            <Transactions 
+              transactions={state.transactions}
               categories={categories}
-              onAdd={handleOpenAddModal}
-              onEdit={handleOpenEditModal}
+              onAdd={() => setIsAddModalOpen(true)}
+              onEdit={(t) => {
+                setEditingTransaction(t);
+                setIsAddModalOpen(true);
+              }}
               onDelete={deleteTransaction}
               onImport={bulkAddTransactions}
             />
           )}
 
-          {currentTab === 'upi' && (
-            <UPITracker
-              transactions={currentMonthTransactions}
-              upiBudget={upiBudget}
-              currentMonth={currentMonth}
-              onAddExpense={handleOpenAddModal}
-              onUpdateUpiBudget={updateUpiBudget}
-              onRemoveUpiBudget={removeUpiBudget}
-            />
-          )}
 
-          {currentTab === 'reports' && (
-            <Reports 
-              transactions={currentMonthTransactions}
-              totalBudget={currentBudget}
-              savings={state.savings}
-              monthlyBudget={state.budgets[currentMonth] || null}
-            />
-          )}
-
-          {currentTab === 'fixed' && (
-            <FixedExpenses
-              recurringExpenses={state.recurringExpenses}
-              categories={categories}
-              totalFixedExpenses={totalFixedExpenses}
-              onAdd={addRecurringExpense}
-              onEdit={editRecurringExpense}
-              onDelete={deleteRecurringExpense}
-              onToggle={toggleRecurringExpense}
-            />
-          )}
 
           {currentTab === 'family' && (
             <FamilyWallet
@@ -212,12 +161,6 @@ function AppContent() {
             />
           )}
 
-          {currentTab === 'yearly' && (
-            <YearlySummary 
-              transactions={state.transactions}
-              currentMonth={currentMonth}
-            />
-          )}
 
           {currentTab === 'insights' && (
             <Insights 
@@ -231,16 +174,44 @@ function AppContent() {
             <BudgetSettings 
               currentMonth={currentMonth}
               monthlyBudget={state.budgets[currentMonth] || null}
-              customCategories={state.customCategories}
+              categories={categories}
               onUpdateBudget={updateBudget}
-              onUpdateUpiBudget={updateUpiBudget}
-              onRemoveUpiBudget={removeUpiBudget}
               onAddCategory={addCustomCategory}
               onDeleteCategory={deleteCustomCategory}
               previousMonthRemaining={previousMonthRemaining}
               onCarryForward={carryForwardBudget}
               savings={state.savings}
               onUpdateSavings={updateSavings}
+            />
+          )}
+
+          {currentTab === 'fixed-expenses' && (
+            <FixedExpenses
+              recurringExpenses={state.recurringExpenses}
+              categories={categories}
+              totalFixedExpenses={totalFixedExpenses}
+              onAdd={addRecurringExpense}
+              onEdit={editRecurringExpense}
+              onDelete={deleteRecurringExpense}
+              onToggle={toggleRecurringExpense}
+            />
+          )}
+
+          {currentTab === 'reports' && (
+            <Reports
+              transactions={currentMonthTransactions}
+              totalBudget={currentBudget}
+              savings={state.savings}
+              monthlyBudget={state.budgets[currentMonth]}
+              currentMonth={currentMonth}
+              allTransactions={state.transactions}
+            />
+          )}
+
+          {currentTab === 'yearly-summary' && (
+            <YearlySummary
+              transactions={state.transactions}
+              currentMonth={currentMonth}
             />
           )}
         </main>

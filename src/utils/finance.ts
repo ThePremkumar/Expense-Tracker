@@ -59,8 +59,8 @@ export const getPaymentModeBreakdown = (transactions: Transaction[]) => {
   const upiTransactions = transactions.filter(t => t.paymentMode === 'UPI');
   const cashTransactions = transactions.filter(t => t.paymentMode === 'Cash');
   
-  const upiSpent = upiTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const cashSpent = cashTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const upiSpent = upiTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const cashSpent = cashTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   
   return {
     upiSpent,
@@ -77,9 +77,9 @@ export const getTodaySpendingByMode = (transactions: Transaction[]) => {
   const today = new Date().toISOString().split('T')[0];
   const todayTxns = transactions.filter(t => t.date === today);
   
-  const total = todayTxns.reduce((s, t) => s + t.amount, 0);
-  const upi = todayTxns.filter(t => t.paymentMode === 'UPI').reduce((s, t) => s + t.amount, 0);
-  const cash = todayTxns.filter(t => t.paymentMode === 'Cash').reduce((s, t) => s + t.amount, 0);
+  const total = todayTxns.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const upi = todayTxns.filter(t => t.paymentMode === 'UPI').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const cash = todayTxns.filter(t => t.paymentMode === 'Cash').reduce((s, t) => s + (Number(t.amount) || 0), 0);
   
   return { total, upi, cash };
 };

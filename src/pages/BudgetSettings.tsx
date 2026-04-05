@@ -26,10 +26,8 @@ import { MonthlyBudget } from '../types';
 interface BudgetSettingsProps {
   currentMonth: string;
   monthlyBudget: MonthlyBudget | null;
-  customCategories: string[];
-  onUpdateBudget: (month: string, amount: number) => void;
-  onUpdateUpiBudget: (month: string, amount: number) => void;
-  onRemoveUpiBudget: (month: string) => void;
+  categories: string[];
+  onUpdateBudget: (month: string, budget: number, reason?: string) => Promise<void>;
   onAddCategory: (name: string) => void;
   onDeleteCategory?: (name: string) => void;
   previousMonthRemaining?: number;
@@ -41,10 +39,8 @@ interface BudgetSettingsProps {
 export function BudgetSettings({ 
   currentMonth, 
   monthlyBudget, 
-  customCategories,
+  categories,
   onUpdateBudget,
-  onUpdateUpiBudget,
-  onRemoveUpiBudget,
   onAddCategory,
   onDeleteCategory,
   previousMonthRemaining = 0,
@@ -53,12 +49,12 @@ export function BudgetSettings({
   onUpdateSavings
 }: BudgetSettingsProps) {
   const [newBudget, setNewBudget] = useState(monthlyBudget?.totalBudget.toString() || '0');
-  const [upiBudgetStr, setUpiBudgetStr] = useState(monthlyBudget?.upiBudget?.toString() || '0');
   const [newCategory, setNewCategory] = useState('');
 
   // Quick adjust states
   const [adjustMode, setAdjustMode] = useState<'add' | 'remove'>('add');
   const [adjustAmount, setAdjustAmount] = useState('');
+  const [quickNote, setQuickNote] = useState('');
 
   // Carry forward states
   const [carryForwardAmount, setCarryForwardAmount] = useState(previousMonthRemaining.toString());
@@ -77,24 +73,14 @@ export function BudgetSettings({
     }
   };
 
-  const handleUpdateUpiBudget = () => {
-    const amount = parseFloat(upiBudgetStr);
-    if (!isNaN(amount) && amount >= 0) {
-      onUpdateUpiBudget(currentMonth, amount);
-    }
-  };
-
-  const handleRemoveUpiBudget = () => {
-    onRemoveUpiBudget(currentMonth);
-    setUpiBudgetStr('0');
-  };
 
   const handleAddToBudget = () => {
     const amount = parseFloat(adjustAmount);
     if (!isNaN(amount) && amount > 0) {
       const newTotal = currentBudgetAmount + amount;
-      onUpdateBudget(currentMonth, newTotal);
+      onUpdateBudget(currentMonth, newTotal, quickNote.trim() || 'Budget added');
       setAdjustAmount('');
+      setQuickNote('');
       setNewBudget(newTotal.toString());
     }
   };
@@ -103,8 +89,9 @@ export function BudgetSettings({
     const amount = parseFloat(adjustAmount);
     if (!isNaN(amount) && amount > 0) {
       const newTotal = Math.max(0, currentBudgetAmount - amount);
-      onUpdateBudget(currentMonth, newTotal);
+      onUpdateBudget(currentMonth, newTotal, quickNote.trim() || 'Budget removed');
       setAdjustAmount('');
+      setQuickNote('');
       setNewBudget(newTotal.toString());
     }
   };
@@ -148,7 +135,7 @@ export function BudgetSettings({
   const isValidAdjust = adjustNum > 0;
   const wouldGoNegative = adjustMode === 'remove' && adjustNum > currentBudgetAmount;
 
-  const defaultCategories = ['Room Rent', 'Food', 'Dress', 'Travel', 'Essentials', 'Miscellaneous'];
+// Removed defaultCategories which are now handled in useExpenseTracker
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -206,33 +193,6 @@ export function BudgetSettings({
                   </div>
                 </div>
 
-                {/* UPI Split Sub-Section */}
-                <div className="pt-6 border-t border-slate-100">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center justify-between">
-                    <span>UPI Allocation (₹)</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optional</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      placeholder="UPI portion"
-                      value={upiBudgetStr}
-                      onChange={(e) => setUpiBudgetStr(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button variant="secondary" onClick={handleUpdateUpiBudget}>Set UPI</Button>
-                    {monthlyBudget?.upiBudget && monthlyBudget.upiBudget > 0 ? (
-                      <Button variant="ghost" onClick={handleRemoveUpiBudget} className="text-rose-500 hover:text-rose-600">
-                        <Trash2Icon className="w-4 h-4" />
-                      </Button>
-                    ) : null}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2">
-                    {monthlyBudget?.upiBudget 
-                      ? `UPI: ${formatCurrency(monthlyBudget.upiBudget)} | Cash: ${formatCurrency(currentBudgetAmount - monthlyBudget.upiBudget)}`
-                      : 'Setting a UPI budget helps track digital spending separately.'}
-                  </p>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -412,9 +372,8 @@ export function BudgetSettings({
               <p className="text-sm text-slate-500 mb-5 leading-relaxed">
                 Quickly add or remove amount from your existing monthly budget without replacing it entirely.
               </p>
-
-              {/* Mode Toggle */}
-              <div className="flex rounded-xl overflow-hidden border border-slate-200 mb-5">
+              {/* Mode Toggles */}
+              <div className="flex rounded-xl overflow-hidden border border-slate-200 mb-6">
                 <button
                   onClick={() => { setAdjustMode('add'); setAdjustAmount(''); }}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
@@ -440,39 +399,50 @@ export function BudgetSettings({
               </div>
 
               {/* Amount Input */}
-              <div className="mb-5">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  {adjustMode === 'add' ? 'Amount to Add (₹)' : 'Amount to Remove (₹)'}
-                </label>
-                <div className="flex gap-2">
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    {adjustMode === 'add' ? 'Amount to Add (₹)' : 'Amount to Remove (₹)'}
+                  </label>
                   <Input
                     type="number"
-                    placeholder={adjustMode === 'add' ? 'e.g. 5000' : 'e.g. 3000'}
+                    placeholder="Enter amount"
                     value={adjustAmount}
                     onChange={(e) => setAdjustAmount(e.target.value)}
-                    className="flex-1"
-                    min="0"
+                    className="w-full h-12 text-lg font-black"
                   />
-                  <Button
-                    onClick={adjustMode === 'add' ? handleAddToBudget : handleRemoveFromBudget}
-                    disabled={!isValidAdjust}
-                    className={adjustMode === 'add'
-                      ? 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300'
-                      : 'bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300'
-                    }
-                  >
-                    {adjustMode === 'add' ? (
-                      <><PlusCircleIcon className="w-4 h-4 mr-1.5" /> Add</>
-                    ) : (
-                      <><MinusCircleIcon className="w-4 h-4 mr-1.5" /> Remove</>
-                    )}
-                  </Button>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Quick Note (Optional)
+                  </label>
+                  <Input
+                    placeholder="e.g., Salary, Bonus, Emergency..."
+                    value={quickNote}
+                    onChange={(e) => setQuickNote(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
+                <Button
+                  className={`w-full py-6 font-bold uppercase tracking-widest ${
+                    adjustMode === 'add' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
+                  disabled={!isValidAdjust || (adjustMode === 'remove' && wouldGoNegative)}
+                  onClick={adjustMode === 'add' ? handleAddToBudget : handleRemoveFromBudget}
+                >
+                  {adjustMode === 'add' ? (
+                    <><PlusCircleIcon className="w-5 h-5 mr-2" /> Complete Addition</>
+                  ) : (
+                    <><MinusCircleIcon className="w-5 h-5 mr-2" /> Complete Removal</>
+                  )}
+                </Button>
               </div>
 
               {/* Live Preview Calculation */}
               {isValidAdjust && (
-                <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                <div className={`p-4 rounded-2xl border-2 transition-all duration-300 mb-6 ${
                   adjustMode === 'add'
                     ? 'bg-emerald-50 border-emerald-200'
                     : wouldGoNegative
@@ -484,50 +454,45 @@ export function BudgetSettings({
                       ? <TrendingUpIcon className="w-4 h-4 text-emerald-600" />
                       : <TrendingDownIcon className="w-4 h-4 text-rose-600" />
                     }
-                    <span className={`text-xs font-bold uppercase tracking-wider ${
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${
                       adjustMode === 'add' ? 'text-emerald-700' : 'text-rose-700'
                     }`}>
-                      Preview
+                      Preview Result
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-slate-700">
+                      <span className="text-sm font-bold text-slate-500">
                         {formatCurrency(currentBudgetAmount)}
                       </span>
-                      <span className={`text-sm font-bold ${adjustMode === 'add' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      <span className={`text-sm font-black ${adjustMode === 'add' ? 'text-emerald-600' : 'text-rose-600'}`}>
                         {adjustMode === 'add' ? '+' : '−'} {formatCurrency(adjustNum)}
                       </span>
                       <ArrowRightIcon className="w-4 h-4 text-slate-400" />
-                      <span className={`text-base font-bold ${
+                      <span className={`text-base font-black ${
                         adjustMode === 'add' ? 'text-emerald-700' : 'text-rose-700'
                       }`}>
                         {formatCurrency(previewNewBudget)}
                       </span>
                     </div>
                   </div>
-                  {wouldGoNegative && (
-                    <p className="text-xs text-amber-700 mt-2 font-medium">
-                      ⚠️ Amount exceeds current budget. Budget will be set to ₹0.
-                    </p>
-                  )}
                 </div>
               )}
 
               {/* Quick Amount Shortcuts */}
-              <div className="mt-4">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick amounts</span>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {[1000, 2000, 5000, 10000].map(amt => (
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Presets</span>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {[1000, 2000, 5000].map(amt => (
                     <button
                       key={amt}
                       onClick={() => setAdjustAmount(amt.toString())}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 ${
+                      className={`px-4 py-2 rounded-xl text-xs font-black border transition-all duration-300 ${
                         adjustAmount === amt.toString()
                           ? adjustMode === 'add'
-                            ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
-                            : 'bg-rose-100 border-rose-300 text-rose-800'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                            : 'bg-rose-600 border-rose-600 text-white shadow-lg shadow-rose-500/20'
+                          : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
                       }`}
                     >
                       {adjustMode === 'add' ? '+' : '−'} {formatCurrency(amt)}
@@ -563,13 +528,7 @@ export function BudgetSettings({
               <div className="space-y-2">
                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Active Categories</h4>
                <div className="flex flex-wrap gap-2">
-                 {defaultCategories.map(c => (
-                   <div key={c} className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 flex items-center gap-2 text-sm text-slate-600">
-                     <CheckCircle2Icon className="w-3 h-3 text-emerald-500" />
-                     {c}
-                   </div>
-                 ))}
-                 {customCategories.map((c: string) => (
+                 {categories.map((c: string) => (
                    <div key={c} className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-2 text-sm text-indigo-700 font-medium group">
                      {c}
                      <button 

@@ -16,6 +16,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   SmartphoneIcon,
+  ReceiptIcon,
   BanknoteIcon } from
 'lucide-react';
 import { formatCurrency, formatDate, getCategoryColor, exportToCSV, parseCSV } from '../utils/helpers';
@@ -193,6 +194,42 @@ export function Transactions({
           </Button>
         </div>
       </div>
+      
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className="bg-white border-slate-200">
+          <CardContent className="p-4 flex items-center justify-between h-full">
+            <div>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                {dateRangeFilter === 'all' ? 'Transactions Found' : 'Filtered Count'}
+              </p>
+              <h3 className="text-xl font-black mt-0.5">{filteredTransactions.length}</h3>
+            </div>
+            <div className="bg-slate-100 p-2 rounded-xl text-slate-500">
+              <ReceiptIcon className="w-5 h-5" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border-none shadow-lg lg:col-span-2">
+          <CardContent className="p-4 flex items-center justify-between h-full">
+            <div>
+              <p className="text-indigo-100 text-[10px] font-black uppercase tracking-widest">
+                {dateRangeFilter === 'today' ? 'Spent Today' : 
+                 dateRangeFilter === 'week' ? 'Spent Since Last Week' : 
+                 dateRangeFilter === 'month' ? 'Spent Since Last Month' :
+                 dateRangeFilter === 'custom' ? `Spent Since ${customStartDate}` : 'Total Spent Flow'}
+              </p>
+              <h3 className="text-2xl font-black mt-0.5">
+                {formatCurrency(filteredTransactions.reduce((s,t) => s + (Number(t.amount) || 0), 0))}
+              </h3>
+            </div>
+            <div className="bg-white/20 p-3 rounded-2xl text-white">
+              <PlusIcon className="w-6 h-6" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <CSVImportModal 
         isOpen={isImportModalOpen}
@@ -341,12 +378,6 @@ export function Transactions({
                             }}
                           >
                             {t.category}
-                          </span>
-                          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            t.paymentMode === 'UPI' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            {t.paymentMode === 'UPI' ? <SmartphoneIcon className="w-2.5 h-2.5" /> : <BanknoteIcon className="w-2.5 h-2.5" />}
-                            {t.paymentMode || 'Cash'}
                           </span>
                         </div>
                       </div>

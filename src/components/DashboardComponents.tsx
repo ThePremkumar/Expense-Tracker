@@ -1,5 +1,5 @@
 import { Card, CardContent } from './ui/Card';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, TrendingUpIcon, TrendingDownIcon, MinusIcon } from 'lucide-react';
 
 interface SummaryStatProps {
   label: string;
@@ -16,26 +16,37 @@ export function SummaryStat({
   icon: Icon, 
   trend 
 }: SummaryStatProps) {
+  const getTrendIcon = () => {
+    if (trend === 'up') return TrendingUpIcon;
+    if (trend === 'down') return TrendingDownIcon;
+    return MinusIcon;
+  };
+  
   const getTrendColor = () => {
-    if (trend === 'up') return 'bg-emerald-100 text-emerald-600';
-    if (trend === 'down') return 'bg-rose-100 text-rose-600';
-    return 'bg-slate-100 text-slate-600';
+    if (trend === 'up') return 'text-emerald-500';
+    if (trend === 'down') return 'text-rose-500';
+    return 'text-slate-400';
   };
 
+  const TrendIcon = getTrendIcon();
+
   return (
-    <Card className="border-none shadow-md hover:shadow-lg transition-shadow">
+    <Card className="glass-card glow-on-hover entry-animation group">
       <CardContent className="p-5">
         <div className="flex justify-between items-start">
-          <div className="min-w-0">
-            <p className="text-slate-500 font-medium text-xs uppercase tracking-wider mb-1 truncate">{label}</p>
-            <h3 className={`text-2xl font-bold truncate ${trend === 'down' ? 'text-rose-600' : trend === 'up' ? 'text-emerald-600' : 'text-slate-900'}`}>
+          <div className="space-y-1">
+            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{label}</p>
+            <h3 className="text-2xl font-extrabold text-slate-800 tracking-tight group-hover:text-primary transition-colors">
               {value}
             </h3>
             {subValue && (
-              <p className="text-[10px] text-slate-400 mt-1 font-medium">{subValue}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <TrendIcon className={`w-3 h-3 ${getTrendColor()}`} />
+                <span className={`text-[10px] font-bold ${getTrendColor()}`}>{subValue}</span>
+              </div>
             )}
           </div>
-          <div className={`p-2.5 rounded-xl ${getTrendColor()} flex-shrink-0`}>
+          <div className="p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-all duration-300">
             <Icon className="w-5 h-5" />
           </div>
         </div>
@@ -68,36 +79,43 @@ export function BudgetProgressCard({
   const isNear = spentPercent > 85 && !isOver;
 
   return (
-    <Card className="border-none shadow-md overflow-hidden">
-      <div className={`p-5 h-full flex flex-col justify-between ${primaryColor} text-white`}>
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-widest">
-            <Icon className="w-4 h-4" /> {title}
+    <Card className="glass-card overflow-hidden entry-animation stat-card-glow group">
+      <div className={`p-6 flex flex-col justify-between h-full bg-slate-50 transition-colors duration-500`}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-xl text-white ${primaryColor} shadow-lg shadow-black/10`}>
+              <Icon className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{title}</span>
           </div>
           {budget > 0 && (
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm ${
-              isOver ? 'bg-rose-500' : isNear ? 'bg-amber-500' : 'bg-white/20 text-white'
+            <span className={`text-[10px] px-2.5 py-1 rounded-full font-extrabold shadow-sm ${
+              isOver ? 'bg-rose-500 text-white' : isNear ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'
             }`}>
               {spentPercent.toFixed(0)}%
             </span>
           )}
         </div>
         
-        <div>
-          <p className="text-2xl font-bold">{budget > 0 ? `${unit}${budget.toLocaleString()}` : 'Not Set'}</p>
-          <div className="mt-4 space-y-2">
-            <div className="w-full bg-black/10 rounded-full h-2 overflow-hidden backdrop-blur-sm shadow-inner">
+        <div className="space-y-4">
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-black text-slate-800">{unit}{budget.toLocaleString()}</span>
+            <span className="text-[10px] font-bold text-slate-400">Monthly Cap</span>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden shadow-inner">
               <div
-                className={`h-full rounded-full transition-all duration-700 ease-out ${
-                  isOver ? 'bg-rose-400' : isNear ? 'bg-amber-400' : 'bg-white'
+                className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                  isOver ? 'bg-rose-500' : isNear ? 'bg-amber-500' : primaryColor
                 }`}
                 style={{ width: `${Math.min(spentPercent, 100)}%` }}
               />
             </div>
-            <div className="flex justify-between items-center text-[10px] font-bold text-white/80">
-              <span>Spent: {unit}{spent.toLocaleString()}</span>
-              <span className={remaining < 0 ? 'text-rose-200' : ''}>
-                Remaining: {unit}{remaining.toLocaleString()}
+            <div className="flex justify-between items-center text-[10px] font-black tracking-tight">
+              <span className="text-slate-500">USED: {unit}{spent.toLocaleString()}</span>
+              <span className={remaining < 0 ? 'text-rose-500' : 'text-emerald-500'}>
+                {remaining < 0 ? 'OVER: ' : 'FREE: '}{unit}{Math.abs(remaining).toLocaleString()}
               </span>
             </div>
           </div>
