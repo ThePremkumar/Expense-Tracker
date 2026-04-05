@@ -17,6 +17,7 @@ import {
   RecurringExpense,
   FamilyMember,
   FamilyTransaction,
+  PaymentMode,
 } from '../types';
 import {
   getCurrentMonthKey,
@@ -285,7 +286,7 @@ export function useExpenseTracker() {
     await syncUserProfile({ familyMembers: updatedMembers });
   };
 
-  const modifyFamilyMemberAmount = async (id: string, amount: number, type: 'deposit' | 'withdraw', description: string = '') => {
+  const modifyFamilyMemberAmount = async (id: string, amount: number, type: 'deposit' | 'withdraw', description: string = '', date?: string, mode?: string, notes?: string) => {
     const updated = state.familyMembers.map(m => {
       if (m.id !== id) return m;
       const newBalance = type === 'deposit' ? m.balance + amount : Math.max(0, m.balance - amount);
@@ -294,37 +295,63 @@ export function useExpenseTracker() {
         type,
         amount,
         description: description || (type === 'deposit' ? 'Refill' : 'Expense'),
-        date: new Date().toISOString().split('T')[0]
+        date: date || new Date().toISOString().split('T')[0],
+        paymentMode: mode as PaymentMode,
+        notes: notes
       };
       return { ...m, balance: newBalance, transactions: [...m.transactions, txn] };
     });
     await syncUserProfile({ familyMembers: updated });
   };
 
-  const transferBetweenFamily = async (fromId: string, toId: string, amount: number) => {
+  const transferBetweenFamily = async (fromId: string, toId: string, amount: number, date?: string, mode?: string, description?: string) => {
     const fromMember = state.familyMembers.find(m => m.id === fromId);
     if (!fromMember || fromMember.balance < amount) return toast.error('Insufficient funds');
     
+    const targetMember = state.familyMembers.find(m => m.id === toId);
+    const txnDate = date || new Date().toISOString().split('T')[0];
+
     const updated = state.familyMembers.map(m => {
-      if (m.id === fromId) return { ...m, balance: m.balance - amount };
-      if (m.id === toId) return { ...m, balance: m.balance + amount };
+      if (m.id === fromId) {
+        const txn: FamilyTransaction = { id: crypto.randomUUID(), type: 'transfer_out', amount, description: description || `Transfer to ${targetMember?.name}`, date: txnDate, paymentMode: mode as PaymentMode, relatedMemberId: toId, relatedMemberName: targetMember?.name };
+        return { ...m, balance: m.balance - amount, transactions: [...m.transactions, txn] };
+      }
+      if (m.id === toId) {
+        const txn: FamilyTransaction = { id: crypto.randomUUID(), type: 'transfer_in', amount, description: description || `Transfer from ${fromMember.name}`, date: txnDate, paymentMode: mode as PaymentMode, relatedMemberId: fromId, relatedMemberName: fromMember.name };
+        return { ...m, balance: m.balance + amount, transactions: [...m.transactions, txn] };
+      }
       return m;
     });
     await syncUserProfile({ familyMembers: updated });
   };
 
-  const transferFamilyToMain = async (memberId: string, amount: number) => {
+  const transferFamilyToMain = async (memberId: string, amount: number, date?: string, mode?: string, notes?: string) => {
     const member = state.familyMembers.find(m => m.id === memberId);
     if (!member || member.balance < amount) return;
-    const updatedFamily = state.familyMembers.map(m => m.id === memberId ? { ...m, balance: m.balance - amount } : m);
+    const txnDate = date || new Date().toISOString().split('T')[0];
+    const updatedFamily = state.familyMembers.map(m => {
+      if (m.id === memberId) {
+        const txn: FamilyTransaction = { id: crypto.randomUUID(), type: 'withdraw', amount, description: 'Move to Main Wallet', date: txnDate, paymentMode: mode as PaymentMode, notes };
+        return { ...m, balance: m.balance - amount, transactions: [...m.transactions, txn] };
+      }
+      return m;
+    });
     await syncUserProfile({ familyMembers: updatedFamily });
     await updateBudget(currentMonth, metrics.currentBudget + amount, `Transfer from ${member.name}`);
   };
 
-  const transferMainToFamily = async (memberId: string, amount: number) => {
+  const transferMainToFamily = async (memberId: string, amount: number, date?: string, mode?: string, notes?: string) => {
     const member = state.familyMembers.find(m => m.id === memberId);
     if (!member) return;
-    const updatedFamily = state.familyMembers.map(m => m.id === memberId ? { ...m, balance: m.balance + amount } : m);
+    if (metrics.currentBudget < amount) return toast.error('Exceeds current month budget');
+    const txnDate = date || new Date().toISOString().split('T')[0];
+    const updatedFamily = state.familyMembers.map(m => {
+      if (m.id === memberId) {
+        const txn: FamilyTransaction = { id: crypto.randomUUID(), type: 'deposit', amount, description: 'Refill from Main', date: txnDate, paymentMode: mode as PaymentMode, notes };
+        return { ...m, balance: m.balance + amount, transactions: [...m.transactions, txn] };
+      }
+      return m;
+    });
     await syncUserProfile({ familyMembers: updatedFamily });
     await updateBudget(currentMonth, Math.max(0, metrics.currentBudget - amount), `Sent to ${member.name}`);
   };

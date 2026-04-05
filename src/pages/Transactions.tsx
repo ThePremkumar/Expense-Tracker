@@ -19,7 +19,7 @@ import {
   ReceiptIcon,
   BanknoteIcon } from
 'lucide-react';
-import { formatCurrency, formatDate, getCategoryColor, exportToCSV, parseCSV } from '../utils/helpers';
+import { formatCurrency, formatDate, getCategoryColor, exportToCSV, parseCSV, getCurrentMonthKey } from '../utils/helpers';
 import { CSVImportModal } from '../components/CSVImportModal';
 import { Transaction, Category } from '../types';
 
@@ -165,6 +165,14 @@ export function Transactions({
     customStartDate || customEndDate || minAmount || maxAmount || 
     (sortBy !== 'date') || (sortOrder !== 'desc');
 
+  const currentMonthKey = getCurrentMonthKey();
+  const { monthlyUpiTotal, monthlyCashTotal } = useMemo(() => {
+    const monthlyTxns = transactions.filter(t => t.date.startsWith(currentMonthKey));
+    const upi = monthlyTxns.filter(t => t.paymentMode === 'UPI').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const cash = monthlyTxns.filter(t => t.paymentMode === 'Cash' || !t.paymentMode).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    return { monthlyUpiTotal: upi, monthlyCashTotal: cash };
+  }, [transactions, currentMonthKey]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -196,36 +204,74 @@ export function Transactions({
       </div>
       
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="bg-white border-slate-200">
-          <CardContent className="p-4 flex items-center justify-between h-full">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="p-4 flex items-center justify-between h-full bg-white">
             <div>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                {dateRangeFilter === 'all' ? 'Transactions Found' : 'Filtered Count'}
-              </p>
-              <h3 className="text-xl font-black mt-0.5">{filteredTransactions.length}</h3>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-tight">FOUND</p>
+              <h3 className="text-xl font-black mt-0.5 text-slate-800">{filteredTransactions.length}</h3>
             </div>
-            <div className="bg-slate-100 p-2 rounded-xl text-slate-500">
+            <div className="bg-slate-100 p-2.5 rounded-xl text-slate-500">
               <ReceiptIcon className="w-5 h-5" />
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border-none shadow-lg lg:col-span-2">
-          <CardContent className="p-4 flex items-center justify-between h-full">
+        <Card className="border-indigo-100 shadow-sm overflow-hidden">
+          <CardContent className="p-4 flex flex-col justify-between h-full bg-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest leading-tight">UPI Flow</p>
+                <h3 className="text-xl font-black mt-0.5 text-indigo-700">
+                  {formatCurrency(filteredTransactions.filter(t=>t.paymentMode==='UPI').reduce((s,t)=>s+(Number(t.amount)||0),0))}
+                </h3>
+              </div>
+              <div className="bg-indigo-50 p-2.5 rounded-xl text-indigo-500">
+                <SmartphoneIcon className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="mt-3 pt-2 border-t border-indigo-50 flex items-center justify-between">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">This Month</span>
+              <span className="text-[10px] font-black text-indigo-500">{formatCurrency(monthlyUpiTotal)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-100 shadow-sm overflow-hidden">
+          <CardContent className="p-4 flex flex-col justify-between h-full bg-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-emerald-500 text-[10px] font-black uppercase tracking-widest leading-tight">Cash Flow</p>
+                <h3 className="text-xl font-black mt-0.5 text-emerald-700">
+                  {formatCurrency(filteredTransactions.filter(t=>t.paymentMode==='Cash' || !t.paymentMode).reduce((s,t)=>s+(Number(t.amount)||0),0))}
+                </h3>
+              </div>
+              <div className="bg-emerald-50 p-2.5 rounded-xl text-emerald-500">
+                <BanknoteIcon className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="mt-3 pt-2 border-t border-emerald-50 flex items-center justify-between">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">This Month</span>
+              <span className="text-[10px] font-black text-emerald-500">{formatCurrency(monthlyCashTotal)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-900 border-2 shadow-md">
+          <CardContent className="p-4 flex items-center justify-between h-full bg-slate-900 text-white">
             <div>
-              <p className="text-indigo-100 text-[10px] font-black uppercase tracking-widest">
-                {dateRangeFilter === 'today' ? 'Spent Today' : 
-                 dateRangeFilter === 'week' ? 'Spent Since Last Week' : 
-                 dateRangeFilter === 'month' ? 'Spent Since Last Month' :
-                 dateRangeFilter === 'custom' ? `Spent Since ${customStartDate}` : 'Total Spent Flow'}
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-tight">
+                {dateRangeFilter === 'today' ? 'Today' : 
+                 dateRangeFilter === 'week' ? 'Past 7d' : 
+                 dateRangeFilter === 'month' ? 'Past 30d' :
+                 dateRangeFilter === 'custom' ? `Since ${customStartDate}` : 'Total Flow'}
               </p>
-              <h3 className="text-2xl font-black mt-0.5">
+              <h3 className="text-xl font-black mt-0.5 whitespace-nowrap">
                 {formatCurrency(filteredTransactions.reduce((s,t) => s + (Number(t.amount) || 0), 0))}
               </h3>
             </div>
-            <div className="bg-white/20 p-3 rounded-2xl text-white">
-              <PlusIcon className="w-6 h-6" />
+            <div className="bg-white/10 p-2.5 rounded-xl text-white">
+              <PlusIcon className="w-5 h-5" />
             </div>
           </CardContent>
         </Card>

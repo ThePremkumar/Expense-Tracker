@@ -3,7 +3,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
-import { FamilyMember } from '../types';
+import { FamilyMember, PaymentMode } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import {
   UsersIcon,
@@ -18,6 +18,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   BanknoteIcon,
+  SmartphoneIcon,
   ShieldCheckIcon
 } from 'lucide-react';
 
@@ -26,10 +27,10 @@ interface FamilyWalletProps {
   currentBudget: number;
   onAddMember: (name: string, balance: number) => void;
   onRemoveMember: (id: string) => void;
-  onModifyAmount: (id: string, amount: number, type: 'deposit' | 'withdraw', description?: string) => void;
-  onTransferBetweenFamily: (fromId: string, toId: string, amount: number) => void;
-  onTransferFamilyToMain: (memberId: string, amount: number) => void;
-  onTransferMainToFamily: (memberId: string, amount: number) => void;
+  onModifyAmount: (id: string, amount: number, type: 'deposit' | 'withdraw', description?: string, date?: string, paymentMode?: string, notes?: string) => void;
+  onTransferBetweenFamily: (fromId: string, toId: string, amount: number, date?: string, paymentMode?: string, notes?: string) => void;
+  onTransferFamilyToMain: (memberId: string, amount: number, date?: string, paymentMode?: string, notes?: string) => void;
+  onTransferMainToFamily: (memberId: string, amount: number, date?: string, paymentMode?: string, notes?: string) => void;
 }
 
 type ModalType = 'add' | 'deposit' | 'withdraw' | 'transfer' | 'toMain' | 'fromMain' | null;
@@ -51,6 +52,9 @@ export function FamilyWallet({
   const [newMemberBalance, setNewMemberBalance] = useState('');
   const [actionAmount, setActionAmount] = useState('');
   const [actionDescription, setActionDescription] = useState('');
+  const [actionDate, setActionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [actionPaymentMode, setActionPaymentMode] = useState<PaymentMode>('Cash');
+  const [actionNotes, setActionNotes] = useState('');
   const [transferToId, setTransferToId] = useState('');
   const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
 
@@ -61,6 +65,9 @@ export function FamilyWallet({
     setNewMemberBalance('');
     setActionAmount('');
     setActionDescription('');
+    setActionDate(new Date().toISOString().split('T')[0]);
+    setActionPaymentMode('Cash');
+    setActionNotes('');
     setTransferToId('');
     setSelectedMember(null);
     setActiveModal(null);
@@ -81,10 +88,10 @@ export function FamilyWallet({
     if (!selectedMember || isNaN(amount) || amount <= 0) return;
 
     switch(type) {
-      case 'deposit': onModifyAmount(selectedMember, amount, 'deposit', actionDescription || 'Added funds'); break;
-      case 'withdraw': onModifyAmount(selectedMember, amount, 'withdraw', actionDescription || 'Withdrawal'); break;
-      case 'toMain': onTransferFamilyToMain(selectedMember, amount); break;
-      case 'fromMain': onTransferMainToFamily(selectedMember, amount); break;
+      case 'deposit': onModifyAmount(selectedMember, amount, 'deposit', actionDescription || 'Added funds', actionDate, actionPaymentMode, actionNotes); break;
+      case 'withdraw': onModifyAmount(selectedMember, amount, 'withdraw', actionDescription || 'Withdrawal', actionDate, actionPaymentMode, actionNotes); break;
+      case 'toMain': onTransferFamilyToMain(selectedMember, amount, actionDate, actionPaymentMode, actionNotes); break;
+      case 'fromMain': onTransferMainToFamily(selectedMember, amount, actionDate, actionPaymentMode, actionNotes); break;
     }
     resetForms();
   };
@@ -92,7 +99,7 @@ export function FamilyWallet({
   const handleTransfer = () => {
     const amount = parseFloat(actionAmount);
     if (!selectedMember || !transferToId || isNaN(amount) || amount <= 0) return;
-    onTransferBetweenFamily(selectedMember, transferToId, amount);
+    onTransferBetweenFamily(selectedMember, transferToId, amount, actionDate, actionPaymentMode, actionDescription);
     resetForms();
   };
 
@@ -279,9 +286,46 @@ export function FamilyWallet({
             <div className={`p-4 rounded-3xl text-sm font-bold tracking-tight ${activeModal?.includes('Main') ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-50 text-slate-600'}`}>
                 Operational target: <span className="underline decoration-indigo-500 font-black">{getSelectedMemberName() || 'Unknown'}</span>
             </div>
-            <Input label="TRANSACTION AMOUNT (₹)" type="number" placeholder="0.00" value={actionAmount} onChange={e => setActionAmount(e.target.value)} autoFocus />
-            <Input label="DESCRIPTION" placeholder="NARRATIVE" value={actionDescription} onChange={e => setActionDescription(e.target.value)} />
-            <Button onClick={() => handleAction(activeModal)} className={`w-full h-12 font-black uppercase tracking-widest ${activeModal === 'withdraw' ? 'bg-rose-500' : 'bg-slate-900'}`}>Execute Transfer</Button>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="AMOUNT (₹)" type="number" placeholder="0.00" value={actionAmount} onChange={e => setActionAmount(e.target.value)} autoFocus />
+              <Input label="DATE" type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} />
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Channel</label>
+              <div className="grid grid-cols-2 gap-3">
+                {(['Cash', 'UPI'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setActionPaymentMode(mode)}
+                    className={`flex items-center justify-center gap-3 h-14 rounded-2xl border-2 transition-all duration-300 font-black text-xs uppercase tracking-widest ${
+                      actionPaymentMode === mode
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-lg shadow-indigo-500/10'
+                        : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    {mode === 'Cash' ? <BanknoteIcon className="w-4 h-4" /> : <SmartphoneIcon className="w-4 h-4" />}
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Input label="DESCRIPTION / NARRATIVE" placeholder="Brief narrative..." value={actionDescription} onChange={e => setActionDescription(e.target.value)} />
+            
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Extended Notes</label>
+              <textarea 
+                className="w-full min-h-[80px] p-4 rounded-2xl bg-slate-50 border-none font-medium text-slate-900 tracking-tight text-sm placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500 transition-all"
+                placeholder="Detailed log notes..."
+                value={actionNotes}
+                onChange={e => setActionNotes(e.target.value)}
+              />
+            </div>
+
+            <Button onClick={() => handleAction(activeModal)} className={`w-full h-14 font-black uppercase tracking-widest rounded-2xl shadow-xl ${activeModal === 'withdraw' ? 'bg-rose-500 shadow-rose-500/20' : 'bg-slate-900 shadow-slate-900/20'}`}>Authorize Operation</Button>
           </div>
         </Modal>
       )}

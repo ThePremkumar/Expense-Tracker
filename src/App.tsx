@@ -30,6 +30,8 @@ function AppContent() {
     totalSpent,
     currentBudget,
     remainingBalance,
+    upiSpent,
+    cashSpent,
     todaySpent,
     availableMonths,
     categories,
@@ -66,15 +68,7 @@ function AppContent() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const handleOpenAddModal = () => {
-    setEditingTransaction(null);
-    setIsAddModalOpen(true);
-  };
-
-  const handleOpenEditModal = (t: Transaction) => {
-    setEditingTransaction(t);
-    setIsAddModalOpen(true);
-  };
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
 
   const handleSaveExpense = async (data: any) => {
     if (editingTransaction) {
@@ -115,16 +109,21 @@ function AppContent() {
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
 
           {currentTab === 'dashboard' && (
-            <Dashboard 
+            <Dashboard
               totalBudget={currentBudget}
               totalSpent={totalSpent}
               remainingBalance={remainingBalance}
+              upiSpent={upiSpent}
+              cashSpent={cashSpent}
               todaySpent={todaySpent}
-              recentTransactions={currentMonthTransactions}
-              onAddExpense={handleOpenAddModal}
+              recentTransactions={currentMonthTransactions.slice(-5).reverse()}
+              onAddExpense={() => setIsAddModalOpen(true)}
               onViewAll={() => setCurrentTab('transactions')}
               onViewInsights={() => setCurrentTab('insights')}
-              onEdit={handleOpenEditModal}
+              onEdit={(t) => {
+                setEditingTransaction(t);
+                setIsAddModalOpen(true);
+              }}
               onDelete={deleteTransaction}
               allTransactions={state.transactions}
               allBudgets={state.budgets}

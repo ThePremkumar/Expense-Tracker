@@ -13,7 +13,9 @@ import {
   ReceiptIcon,
   Edit2Icon,
   Trash2Icon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  SmartphoneIcon,
+  BanknoteIcon
 } from 'lucide-react';
 import { SummaryStat } from '../components/DashboardComponents';
 import { SmartInsights } from '../components/SmartInsights';
@@ -43,6 +45,8 @@ interface DashboardProps {
   totalBudget: number;
   totalSpent: number;
   remainingBalance: number;
+  upiSpent: number;
+  cashSpent: number;
   todaySpent: number;
   recentTransactions: Transaction[];
   onAddExpense: () => void;
@@ -59,6 +63,8 @@ export function Dashboard({
   totalBudget,
   totalSpent,
   remainingBalance,
+  upiSpent,
+  cashSpent,
   todaySpent,
   recentTransactions,
   onAddExpense,
@@ -133,9 +139,42 @@ export function Dashboard({
       </div>
 
       {/* TOP STATS ROW */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <SummaryStat label="Monthly Cap" value={formatCurrency(totalBudget)} icon={TargetIcon} trend="neutral" />
-        <SummaryStat label="Total Flow" value={formatCurrency(totalSpent)} subValue={`${spentPercentage.toFixed(0)}% Utilized`} icon={ActivityIcon} trend={isOverLimit ? 'down' : 'neutral'} />
+        
+        <Card className="glass-card glow-on-hover border-none shadow-xl overflow-hidden group">
+          <CardContent className="p-5 flex flex-col justify-between h-full">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Total Flow</p>
+                <h3 className="text-2xl font-extrabold text-slate-800 tracking-tight group-hover:text-primary transition-colors">
+                  {formatCurrency(totalSpent)}
+                </h3>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className={`text-[10px] font-bold ${isOverLimit ? 'text-rose-500' : 'text-slate-400'}`}>
+                    {spentPercentage.toFixed(0)}% Utilized
+                  </span>
+                </div>
+              </div>
+              <div className="p-3 rounded-[1.25rem] bg-slate-50 text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-all duration-300">
+                <ActivityIcon className="w-5 h-5" />
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-4">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter">UPI</span>
+                <span className="text-[11px] font-black text-indigo-600 leading-none">{formatCurrency(upiSpent)}</span>
+              </div>
+              <div className="w-px h-6 bg-slate-100" />
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">CASH</span>
+                <span className="text-[11px] font-black text-emerald-600 leading-none">{formatCurrency(cashSpent)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <SummaryStat label="Free Capital" value={formatCurrency(Math.max(0, remainingBalance))} icon={WalletIcon} trend={remainingBalance < 0 ? 'down' : 'up'} />
         <SummaryStat label="Today's Spend" value={formatCurrency(todaySpent)} icon={ZapIcon} trend="neutral" />
       </div>

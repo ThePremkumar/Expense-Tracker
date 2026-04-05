@@ -65,6 +65,8 @@ export interface FamilyTransaction {
   amount: number;
   description: string;
   date: string;
+  paymentMode?: PaymentMode;
+  notes?: string;
   relatedMemberId?: string; // For transfers between family members
   relatedMemberName?: string;
 }

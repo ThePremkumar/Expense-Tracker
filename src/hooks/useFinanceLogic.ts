@@ -38,7 +38,7 @@ export function useFinanceLogic({ state, currentMonth }: FinanceMetricsProps) {
 
 
   // Real-time spending velocity and projections
-  const { total: todaySpent } = useMemo(() => 
+  const { total: todaySpent, upi: todayUpiSpent, cash: todayCashSpent } = useMemo(() => 
     getTodaySpendingByMode(currentMonthTransactions), 
     [currentMonthTransactions]
   );
@@ -81,6 +81,8 @@ export function useFinanceLogic({ state, currentMonth }: FinanceMetricsProps) {
     upiSpent,
     cashSpent,
     todaySpent,
+    todayUpiSpent,
+    todayCashSpent,
     dailyAverage,
     spendingVelocity,
     budgetHealthScore,
