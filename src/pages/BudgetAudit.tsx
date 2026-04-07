@@ -198,7 +198,7 @@ export function BudgetAudit({ state, allTransactions, onUpdateMissingAmount }: B
                           <ArrowDownIcon className="w-4 h-4 text-sky-500" />
                           <span className="text-base font-black text-sky-600">{formatCurrency(row.carryForward)}</span>
                         </div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Carry Forward Balance</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Last month balance</span>
                       </div>
                     </td>
                     <td className="p-8 text-right">
