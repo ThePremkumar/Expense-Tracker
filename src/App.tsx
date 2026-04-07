@@ -14,6 +14,7 @@ import { FamilyWallet } from './pages/FamilyWallet';
 import { FixedExpenses } from './pages/FixedExpenses';
 import { Reports } from './pages/Reports';
 import { YearlySummary } from './pages/YearlySummary';
+import { BudgetAudit } from './pages/BudgetAudit';
 import { useExpenseTracker } from './hooks/useExpenseTracker';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
@@ -60,15 +61,24 @@ function AppContent() {
     editRecurringExpense,
     deleteRecurringExpense,
     toggleRecurringExpense,
-    totalFixedExpenses
+    totalFixedExpenses,
+    upiBudget,
+    cashBudget,
+    upiRemaining,
+    cashRemaining,
+    transferBetweenModes,
+    addMissingAmount,
+    updateMissingAmount,
+    totalMissing,
+    todayMissing
   } = useExpenseTracker();
 
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'transactions' | 'insights' | 'settings' | 'family' | 'fixed-expenses' | 'reports' | 'yearly-summary'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'transactions' | 'insights' | 'settings' | 'family' | 'fixed-expenses' | 'reports' | 'yearly-summary' | 'budget-audit'>('dashboard');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
 
   const handleSaveExpense = async (data: any) => {
     if (editingTransaction) {
@@ -128,6 +138,13 @@ function AppContent() {
               allTransactions={state.transactions}
               allBudgets={state.budgets}
               currentMonth={currentMonth}
+              upiBudget={upiBudget}
+              cashBudget={cashBudget}
+              upiRemaining={upiRemaining}
+              cashRemaining={cashRemaining}
+              onAddMissingAmount={addMissingAmount}
+              totalMissing={totalMissing}
+              todayMissing={todayMissing}
             />
           )}
 
@@ -181,6 +198,9 @@ function AppContent() {
               onCarryForward={carryForwardBudget}
               savings={state.savings}
               onUpdateSavings={updateSavings}
+              onTransferModes={async (a, f) => { await transferBetweenModes(a, f); }}
+              upiBudget={upiBudget}
+              cashBudget={cashBudget}
             />
           )}
 
@@ -211,6 +231,14 @@ function AppContent() {
             <YearlySummary
               transactions={state.transactions}
               currentMonth={currentMonth}
+            />
+          )}
+          
+          {currentTab === 'budget-audit' && (
+            <BudgetAudit 
+              state={state}
+              allTransactions={state.transactions}
+              onUpdateMissingAmount={updateMissingAmount}
             />
           )}
         </main>

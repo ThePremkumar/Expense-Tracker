@@ -5,13 +5,13 @@ import {
   LightbulbIcon,
   LogOutIcon,
   WalletIcon,
-  Trash2Icon,
   XIcon,
   UsersIcon,
   ChevronRightIcon,
   RepeatIcon,
   BarChart3Icon,
-  CalendarIcon
+  CalendarIcon,
+  ShieldCheckIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +34,7 @@ export function Sidebar({ currentTab, onTabChange, isOpen, onClose }: SidebarPro
     { id: 'fixed-expenses', label: 'Fixed Expenses', icon: RepeatIcon },
     { id: 'family', label: 'Family Wallet', icon: UsersIcon },
     { id: 'reports', label: 'Reports', icon: BarChart3Icon },
+    { id: 'budget-audit', label: 'Budget Audit', icon: ShieldCheckIcon },
     { id: 'yearly-summary', label: 'Year Summary', icon: CalendarIcon },
     { id: 'insights', label: 'Insights', icon: LightbulbIcon },
     { id: 'settings', label: 'Budget Settings', icon: SettingsIcon },

@@ -34,7 +34,7 @@ export function useExpenseTracker() {
   const categories = useMemo(() => {
     return state.customCategories.length > 0 
       ? state.customCategories 
-      : ['Food & Drinks', 'Shopping', 'Transport', 'Rent/Mortgage', 'Other'];
+      : ['Room Rent', 'Food', 'Dress', 'Travel', 'Essentials', 'Miscellaneous'];
   }, [state.customCategories]);
 
   const availableMonths = useMemo(() => {
@@ -164,7 +164,7 @@ export function useExpenseTracker() {
     }
   };
 
-  const updateBudget = async (month: string, budget: number, reason: string = 'Budget update') => {
+  const updateBudget = async (month: string, budget: number, upiBudget?: number, cashBudget?: number, reason: string = 'Budget update') => {
     const existing = state.budgets[month];
     const newHistoryEntry = {
       date: new Date().toISOString(),
@@ -178,6 +178,8 @@ export function useExpenseTracker() {
       [month]: {
         ...(existing || { month, totalBudget: 0, history: [], carryForward: 0, carryForwardToSavings: 0 }),
         totalBudget: budget,
+        upiBudget: upiBudget !== undefined ? upiBudget : (existing?.upiBudget || budget / 2),
+        cashBudget: cashBudget !== undefined ? cashBudget : (existing?.cashBudget || budget / 2),
         history: existing ? [...existing.history, newHistoryEntry] : [newHistoryEntry],
       }
     };
@@ -185,6 +187,63 @@ export function useExpenseTracker() {
     await syncUserProfile({ budgets: updatedBudgets });
   };
 
+  const transferBetweenModes = async (amount: number, from: 'UPI' | 'Cash') => {
+    const existing = state.budgets[currentMonth];
+    if (!existing) return toast.error("Budget not set for this month");
+
+    const upi = existing.upiBudget || 0;
+    const cash = existing.cashBudget || 0;
+
+    let updatedUpi = upi;
+    let updatedCash = cash;
+
+    if (from === 'Cash') {
+      if (cash < amount) return toast.error("Insufficient Cash budget");
+      updatedUpi += amount;
+      updatedCash -= amount;
+    } else {
+      if (upi < amount) return toast.error("Insufficient UPI budget");
+      updatedUpi -= amount;
+      updatedCash += amount;
+    }
+
+    const updatedBudgets = {
+      ...state.budgets,
+      [currentMonth]: {
+        ...existing,
+        upiBudget: updatedUpi,
+        cashBudget: updatedCash,
+      }
+    };
+
+    await syncUserProfile({ budgets: updatedBudgets });
+    toast.success(`Transferred ₹${amount} from ${from} to ${from === 'Cash' ? 'UPI' : 'Cash'}`);
+  };
+
+  const addMissingAmount = async (amount: number, mode: 'UPI' | 'Cash', notes: string = '') => {
+    await addTransaction({
+      title: 'Missing Amount (Discrepancy)',
+      amount,
+      category: 'Miscellaneous',
+      paymentMode: mode,
+      date: new Date().toISOString().split('T')[0],
+      notes: notes || 'Automatically adjusted for missing funds',
+    });
+    toast.success(`₹${amount} recorded as missing ${mode}`);
+  };
+
+  const updateMissingAmount = async (month: string, amount: number) => {
+    const existing = state.budgets[month];
+    const updatedBudgets = {
+      ...state.budgets,
+      [month]: {
+        ...(existing || { month, totalBudget: 0, history: [], carryForward: 0, carryForwardToSavings: 0 }),
+        missingAmountOverride: amount
+      }
+    };
+    await syncUserProfile({ budgets: updatedBudgets });
+    toast.success(`Missing amount updated for ${month}`);
+  };
 
   const carryForwardBudget = async (amount: number, target: 'budget' | 'savings') => {
     const existingBudget = state.budgets[currentMonth];
@@ -337,7 +396,7 @@ export function useExpenseTracker() {
       return m;
     });
     await syncUserProfile({ familyMembers: updatedFamily });
-    await updateBudget(currentMonth, metrics.currentBudget + amount, `Transfer from ${member.name}`);
+    await updateBudget(currentMonth, metrics.currentBudget + amount, undefined, undefined, `Transfer from ${member.name}`);
   };
 
   const transferMainToFamily = async (memberId: string, amount: number, date?: string, mode?: string, notes?: string) => {
@@ -353,7 +412,7 @@ export function useExpenseTracker() {
       return m;
     });
     await syncUserProfile({ familyMembers: updatedFamily });
-    await updateBudget(currentMonth, Math.max(0, metrics.currentBudget - amount), `Sent to ${member.name}`);
+    await updateBudget(currentMonth, Math.max(0, metrics.currentBudget - amount), undefined, undefined, `Sent to ${member.name}`);
   };
 
   const syncLocalData = async () => {
@@ -411,6 +470,9 @@ export function useExpenseTracker() {
     transferBetweenFamily,
     transferFamilyToMain,
     transferMainToFamily,
+    transferBetweenModes,
+    addMissingAmount,
+    updateMissingAmount,
     syncLocalData
   };
 }

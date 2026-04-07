@@ -22,29 +22,49 @@ export function useFinanceLogic({ state, currentMonth }: FinanceMetricsProps) {
     return state.transactions.filter(t => t.date.startsWith(currentMonth));
   }, [state.transactions, currentMonth]);
 
-  // Basic totals
-  const totalSpent = useMemo(() => {
-    return currentMonthTransactions.reduce((sum: number, t: Transaction) => sum + (Number(t.amount) || 0), 0);
-  }, [currentMonthTransactions]);
-
-  const currentBudget = state.budgets[currentMonth]?.totalBudget || 0;
-  const remainingBalance = currentBudget - totalSpent;
-
-  // Breakdown by payment mode
+  // Breakdown by payment mode - CALC FIRST to avoid initialization errors
   const { upiSpent, cashSpent } = useMemo(() => 
     getPaymentModeBreakdown(currentMonthTransactions),
     [currentMonthTransactions]
   );
 
+  const totalMissing = useMemo(() => {
+    return currentMonthTransactions
+      .filter(t => t.title.toLowerCase().includes('missing amount'))
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  }, [currentMonthTransactions]);
+
+  const totalSpent = useMemo(() => {
+    return currentMonthTransactions
+      .filter(t => !t.title.toLowerCase().includes('missing amount'))
+      .reduce((sum: number, t: Transaction) => sum + (Number(t.amount) || 0), 0);
+  }, [currentMonthTransactions]);
+
+  const currentBudget = state.budgets[currentMonth]?.totalBudget || 0;
+  const upiBudget = state.budgets[currentMonth]?.upiBudget || 0;
+  const cashBudget = state.budgets[currentMonth]?.cashBudget || 0;
+  
+  const remainingBalance = currentBudget - (totalSpent + totalMissing);
+  const upiRemaining = upiBudget - upiSpent;
+  const cashRemaining = cashBudget - cashSpent;
 
   // Real-time spending velocity and projections
-  const { total: todaySpent, upi: todayUpiSpent, cash: todayCashSpent } = useMemo(() => 
+  const today = new Date().toISOString().split('T')[0];
+  const { total: rawTodayTotal, upi: todayUpiSpent, cash: todayCashSpent } = useMemo(() => 
     getTodaySpendingByMode(currentMonthTransactions), 
     [currentMonthTransactions]
   );
+  
+  const todayMissing = useMemo(() => {
+    return currentMonthTransactions
+      .filter(t => t.date === today && t.title.toLowerCase().includes('missing amount'))
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  }, [currentMonthTransactions, today]);
+
+  const todaySpent = rawTodayTotal - todayMissing;
 
   const dailyAverage = useMemo(() => 
-    calculateDailyAverage(currentMonthTransactions, totalSpent),
+    calculateDailyAverage(currentMonthTransactions.filter(t => !t.title.toLowerCase().includes('missing amount')), totalSpent),
     [currentMonthTransactions, totalSpent]
   );
 
@@ -77,12 +97,18 @@ export function useFinanceLogic({ state, currentMonth }: FinanceMetricsProps) {
     currentMonthTransactions,
     totalSpent,
     currentBudget,
+    upiBudget,
+    cashBudget,
     remainingBalance,
+    upiRemaining,
+    cashRemaining,
     upiSpent,
     cashSpent,
     todaySpent,
     todayUpiSpent,
     todayCashSpent,
+    totalMissing,
+    todayMissing,
     dailyAverage,
     spendingVelocity,
     budgetHealthScore,

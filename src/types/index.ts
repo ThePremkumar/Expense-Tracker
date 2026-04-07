@@ -36,9 +36,11 @@ export interface MonthlyBudget {
   month: string; // YYYY-MM
   totalBudget: number;
   upiBudget?: number; // Separate UPI budget allocation
+  cashBudget?: number; // Separate Cash budget allocation
   history: BudgetAdjustment[];
   carryForward?: number; // Amount carried forward from previous month
   carryForwardToSavings?: number; // Amount moved to savings instead
+  missingAmountOverride?: number; // Manually set missing amount override
 }
 
 export interface RecurringExpense {

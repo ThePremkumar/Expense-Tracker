@@ -8,16 +8,16 @@ import {
   ZapIcon,
   ActivityIcon,
   TargetIcon,
-  DownloadIcon,
   WalletIcon,
   ReceiptIcon,
   Edit2Icon,
   Trash2Icon,
   ArrowRightIcon,
   SmartphoneIcon,
-  BanknoteIcon
+  BanknoteIcon,
+  DownloadIcon
 } from 'lucide-react';
-import { SummaryStat } from '../components/DashboardComponents';
+
 import { SmartInsights } from '../components/SmartInsights';
 import {
   formatCurrency,
@@ -36,7 +36,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  ReferenceLine,
   AreaChart,
   Area
 } from 'recharts';
@@ -54,9 +53,16 @@ interface DashboardProps {
   onViewInsights?: () => void;
   onEdit: (t: Transaction) => void;
   onDelete: (id: string) => void;
-  allTransactions: Transaction[];
   allBudgets: Record<string, MonthlyBudget>;
   currentMonth: string;
+  upiBudget: number;
+  cashBudget: number;
+  upiRemaining: number;
+  cashRemaining: number;
+  onAddMissingAmount: (amount: number, mode: 'UPI' | 'Cash', notes?: string) => Promise<void>;
+  allTransactions: Transaction[];
+  totalMissing: number;
+  todayMissing: number;
 }
 
 export function Dashboard({
@@ -74,13 +80,19 @@ export function Dashboard({
   onDelete,
   allTransactions,
   allBudgets,
-  currentMonth
+  currentMonth,
+  upiBudget,
+  cashBudget,
+  upiRemaining,
+  cashRemaining,
+  onAddMissingAmount,
+  totalMissing,
+  todayMissing: _todayMissing
 }: DashboardProps) {
 
   const [transactionModeFilter, setTransactionModeFilter] = useState<'all' | 'UPI' | 'Cash'>('all');
 
   const spentPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
-  const isOverLimit = spentPercentage >= 100;
   
   const filteredTransactions = useMemo(() => {
     if (transactionModeFilter === 'all') return recentTransactions;
@@ -88,95 +100,131 @@ export function Dashboard({
   }, [recentTransactions, transactionModeFilter]);
 
   const categoryData = groupTransactionsByCategory(recentTransactions);
+  const dailyData = groupTransactionsByDate(allTransactions.filter(t => t.date.startsWith(currentMonth)));
 
-  const handleExport = () => {
-    const filename = `expenses-${currentMonth}.csv`;
-    exportToCSV(recentTransactions, filename);
-  };
-
-  // Cumulative spending data for area chart
   const cumulativeData = useMemo(() => {
-    const dailyData = groupTransactionsByDate(recentTransactions);
-    let cumulative = 0;
-    const data = dailyData.map((d) => {
-      cumulative += d.amount;
+    let cumulativeSpent = 0;
+    return dailyData.map(d => {
+      cumulativeSpent += d.amount;
       return {
-        day: new Date(d.date).getDate(),
         date: d.date,
-        spent: cumulative,
-        remaining: totalBudget > 0 ? Math.max(totalBudget - cumulative, 0) : 0,
-        dailySpend: d.amount
+        spent: cumulativeSpent,
+        remaining: Math.max(0, totalBudget - cumulativeSpent)
       };
     });
-    if (data.length > 0 && data[0].day > 1 && totalBudget > 0) {
-      data.unshift({ day: 1, date: '', spent: 0, remaining: totalBudget, dailySpend: 0 });
-    }
-    return data;
-  }, [recentTransactions, totalBudget]);
-
+  }, [dailyData, totalBudget]);
 
   return (
-    <div className="space-y-8 entry-animation">
+    <div className="space-y-10 animate-in fade-in duration-1000 slide-in-from-bottom-4">
       {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-2">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] bg-indigo-500/10 px-2 py-0.5 rounded-md">Financial Core</span>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded-md">Financial Core</span>
           </div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Command Center</h1>
-          <p className="text-slate-400 font-bold text-sm tracking-tight flex items-center gap-1.5">
-            <CalendarIcon className="w-3.5 h-3.5" /> Operations for {currentMonth}
-          </p>
+          <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Command Center</h1>
+          <div className="flex items-center gap-2 text-slate-400 font-bold text-sm tracking-tight pt-1">
+            <CalendarIcon className="w-4 h-4 text-indigo-400" />
+            <span>Operations for {currentMonth}</span>
+          </div>
         </div>
+
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={handleExport} className="glass-card font-black text-xs uppercase tracking-widest px-6 h-12">
-            <DownloadIcon className="w-4 h-4 mr-2" /> Export
+          <Button variant="secondary" size="lg" className="rounded-2xl border-slate-200 shadow-xl shadow-slate-200/50 hover:bg-slate-50 gap-2 px-6 h-14" onClick={() => exportToCSV(allTransactions, `expenses_${currentMonth}`)}>
+            <DownloadIcon className="w-4 h-4 text-slate-400" />
+            <span className="font-black text-xs uppercase tracking-widest text-slate-600">Export</span>
           </Button>
-          <Button onClick={onAddExpense} className="premium-gradient font-black text-xs uppercase tracking-widest px-6 h-12 shadow-xl shadow-indigo-500/20">
-            <PlusIcon className="w-4 h-4 mr-2" /> New Expense
+          <Button size="lg" onClick={onAddExpense} className="premium-gradient rounded-2xl shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-500/60 transition-all duration-300 gap-2 px-8 h-14">
+            <PlusIcon className="w-5 h-5 text-white" />
+            <span className="font-black text-xs uppercase tracking-widest text-white">New Expense</span>
           </Button>
         </div>
       </div>
 
-      {/* TOP STATS ROW */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <SummaryStat label="Monthly Cap" value={formatCurrency(totalBudget)} icon={TargetIcon} trend="neutral" />
-        
-        <Card className="glass-card glow-on-hover border-none shadow-xl overflow-hidden group">
-          <CardContent className="p-5 flex flex-col justify-between h-full">
-            <div className="flex justify-between items-start">
-              <div className="space-y-1">
-                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Total Flow</p>
-                <h3 className="text-2xl font-extrabold text-slate-800 tracking-tight group-hover:text-primary transition-colors">
-                  {formatCurrency(totalSpent)}
-                </h3>
-                <div className="flex items-center gap-1 mt-1">
-                  <span className={`text-[10px] font-bold ${isOverLimit ? 'text-rose-500' : 'text-slate-400'}`}>
-                    {spentPercentage.toFixed(0)}% Utilized
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 rounded-[1.25rem] bg-slate-50 text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-all duration-300">
-                <ActivityIcon className="w-5 h-5" />
+      {/* CORE PERFORMANCE GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        {/* Monthly Cap */}
+        <Card className="glass-card glow-on-hover p-6 relative overflow-hidden bg-white/50 group">
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monthly Cap</span>
+              <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-colors">
+                <TargetIcon className="w-4 h-4" />
               </div>
             </div>
-            
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-4">
-              <div className="flex flex-col">
-                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter">UPI</span>
-                <span className="text-[11px] font-black text-indigo-600 leading-none">{formatCurrency(upiSpent)}</span>
-              </div>
-              <div className="w-px h-6 bg-slate-100" />
-              <div className="flex flex-col">
-                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">CASH</span>
-                <span className="text-[11px] font-black text-emerald-600 leading-none">{formatCurrency(cashSpent)}</span>
-              </div>
-            </div>
-          </CardContent>
+            <span className="text-3xl font-black text-slate-900 tracking-tighter block">{formatCurrency(totalBudget)}</span>
+          </div>
         </Card>
 
-        <SummaryStat label="Free Capital" value={formatCurrency(Math.max(0, remainingBalance))} icon={WalletIcon} trend={remainingBalance < 0 ? 'down' : 'up'} />
-        <SummaryStat label="Today's Spend" value={formatCurrency(todaySpent)} icon={ZapIcon} trend="neutral" />
+        {/* Total Flow */}
+        <Card className="glass-card glow-on-hover p-6 relative overflow-hidden bg-white/50 group">
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Flow</span>
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-100 transition-colors">
+                <ActivityIcon className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-3xl font-black text-slate-900 tracking-tighter block">{formatCurrency(totalSpent)}</span>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{spentPercentage.toFixed(0)}% Utilized</p>
+            </div>
+            <div className="flex items-center gap-3 pt-3 border-t border-slate-100/50">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter">UPI (S/R)</span>
+                <span className="text-[11px] font-black text-indigo-600 leading-none">
+                  {formatCurrency(upiSpent)} / <span className={upiRemaining < 0 ? 'text-rose-500' : 'text-slate-400'}>{formatCurrency(upiRemaining)}</span>
+                </span>
+              </div>
+              <div className="w-px h-5 bg-slate-100" />
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">CASH (S/R)</span>
+                <span className="text-[11px] font-black text-emerald-600 leading-none">
+                  {formatCurrency(cashSpent)} / <span className={cashRemaining < 0 ? 'text-rose-500' : 'text-slate-400'}>{formatCurrency(cashRemaining)}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Free Capital */}
+        <Card className="glass-card glow-on-hover p-6 relative overflow-hidden bg-white/50 group">
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Free Capital</span>
+              <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-emerald-50 group-hover:text-emerald-400 transition-colors">
+                <WalletIcon className="w-4 h-4" />
+              </div>
+            </div>
+            <span className={`text-3xl font-black tracking-tighter block ${remainingBalance < 0 ? 'text-rose-500' : 'text-slate-900'}`}>{formatCurrency(Math.max(0, remainingBalance))}</span>
+          </div>
+        </Card>
+
+        {/* Today's Spend */}
+        <Card className="glass-card glow-on-hover p-6 relative overflow-hidden bg-white/50 group">
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Today's Spend</span>
+              <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-amber-50 group-hover:text-amber-400 transition-colors">
+                <ZapIcon className="w-4 h-4" />
+              </div>
+            </div>
+            <span className="text-3xl font-black text-slate-900 tracking-tighter block">{formatCurrency(todaySpent)}</span>
+          </div>
+        </Card>
+
+        {/* Discrepancy */}
+        <Card className="glass-card glow-on-hover p-6 relative overflow-hidden bg-white/50 group">
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Discrepancy</span>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${totalMissing > 0 ? 'bg-rose-50 text-rose-400' : 'bg-slate-50 text-slate-300 group-hover:bg-rose-50 group-hover:text-rose-400'}`}>
+                <TargetIcon className="w-4 h-4" />
+              </div>
+            </div>
+            <span className={`text-3xl font-black tracking-tighter block ${totalMissing > 0 ? 'text-rose-500' : 'text-slate-900'}`}>{formatCurrency(totalMissing)}</span>
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -212,154 +260,186 @@ export function Dashboard({
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 700 }} tickFormatter={(value) => `₹${value}`} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '20px' }}
-                    labelStyle={{ fontWeight: 800, marginBottom: '8px', color: '#1E293B' }}
-                    formatter={(value: any) => [`₹${(value as number).toLocaleString()}`, '']}
-                  />
-                  {totalBudget > 0 && <ReferenceLine y={totalBudget} stroke="#EF4444" strokeDasharray="10 10" strokeWidth={2} label={{ value: 'LIMIT', fill: '#EF4444', fontSize: 10, fontWeight: 900 }} />}
-                  <Area type="monotone" dataKey="spent" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorSpent)" activeDot={{ r: 8, fill: '#6366f1', strokeWidth: 4, stroke: '#fff' }} />
-                  {totalBudget > 0 && <Area type="monotone" dataKey="remaining" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorRemaining)" activeDot={{ r: 8, fill: '#10b981', strokeWidth: 4, stroke: '#fff' }} />}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="date" hide />
+                  <YAxis hide />
+                  <Tooltip content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/10">
+                          <p className="text-[10px] font-black uppercase text-slate-400 mb-2">{payload[0].payload.date}</p>
+                          <div className="space-y-1">
+                            <p className="text-sm font-black flex justify-between gap-8 text-indigo-400">
+                               <span>SPENT</span>
+                               <span>{formatCurrency(payload[0].value as number)}</span>
+                            </p>
+                            <p className="text-sm font-black flex justify-between gap-8 text-emerald-400">
+                               <span>BALANCE</span>
+                               <span>{formatCurrency(payload[1].value as number)}</span>
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }} />
+                  <Area type="monotone" dataKey="spent" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorSpent)" />
+                  <Area type="monotone" dataKey="remaining" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorRemaining)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* CATEGORY DONUT - MOVED UP */}
-        <Card className="glass-card border-none shadow-2xl overflow-hidden p-8 flex flex-col justify-center">
-            <div className="space-y-1 mb-8">
-              <CardTitle className="text-lg font-black tracking-tight">Category Distribution</CardTitle>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Weight split by sector</p>
+        {/* SECTOR DISTRIBUTION PIE */}
+        <Card className="glass-card border-none shadow-2xl overflow-hidden p-8 flex flex-col">
+          <CardHeader className="p-0 mb-6">
+            <CardTitle className="text-xl font-black tracking-tight">Category Distribution</CardTitle>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Weight split by sector</p>
+          </CardHeader>
+          <CardContent className="p-0 flex-1 flex flex-col justify-center">
+            <div className="h-64 w-full relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={95}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={getCategoryColor(entry.name)} className="hover:opacity-80 transition-opacity" />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: '12px' }}
+                    itemStyle={{ fontWeight: '900', textTransform: 'uppercase', fontSize: '10px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-            {categoryData.length > 0 ? (
-              <>
-                <div className="h-56 w-full mb-8">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={categoryData} cx="50%" cy="50%" innerRadius={70} outerRadius={90} paddingAngle={2} dataKey="value" stroke="none">
-                        {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={getCategoryColor(entry.name)} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 800 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+            
+            <div className="mt-8 space-y-3">
+              {categoryData.slice(0, 4).map((cat) => (
+                <div key={cat.name} className="flex items-center justify-between group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getCategoryColor(cat.name) }} />
+                    <span className="text-xs font-black text-slate-600 uppercase tracking-tight">{cat.name}</span>
+                  </div>
+                  <span className="text-xs font-black text-slate-900">{formatCurrency(cat.value)}</span>
                 </div>
-                <div className="space-y-3">
-                  {categoryData.slice(0, 4).map((item) => (
-                    <div key={item.name} className="flex items-center justify-between group">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: getCategoryColor(item.name) }} />
-                        <span className="text-[11px] font-bold text-slate-500 tracking-tight group-hover:text-slate-900 transition-colors">{item.name}</span>
-                      </div>
-                      <span className="text-xs font-black text-slate-800 tracking-tighter">{formatCurrency(item.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="h-64 flex flex-col items-center justify-center text-slate-300">
-                <PieChartIcon className="w-12 h-12 mb-3 opacity-20" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Awaiting sector data</span>
-              </div>
-            )}
+              ))}
+            </div>
+          </CardContent>
         </Card>
       </div>
 
-
-      {/* RECENT ACTIVITY */}
-      <div className="space-y-8">
-        <Card className="glass-card border-none shadow-2xl overflow-hidden">
-          <CardHeader className="p-8 pb-4 flex flex-row items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-xl font-black tracking-tight tracking-tight">Financial Ledger</CardTitle>
-              <div className="flex gap-2">
+      {/* RECENT ANALYTICS & LEDGER */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8">
+          <Card className="glass-card border-none shadow-2xl overflow-hidden rounded-[2.5rem]">
+            <CardHeader className="p-8 pb-4 flex flex-row items-center justify-between bg-slate-50/50">
+              <div className="space-y-1">
+                <CardTitle className="text-xl font-black tracking-tight">Financial Ledger</CardTitle>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Recent operational activity</p>
+              </div>
+              
+              <div className="flex rounded-xl overflow-hidden border border-slate-200">
                 {(['all', 'UPI', 'Cash'] as const).map(mode => (
                   <button
                     key={mode}
                     onClick={() => setTransactionModeFilter(mode)}
-                    className={`px-3 py-1 text-[9px] font-black rounded-full uppercase tracking-widest transition-all ${
-                      transactionModeFilter === mode 
-                        ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/10' 
-                        : 'text-slate-400 hover:text-slate-600'
+                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                      transactionModeFilter === mode
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white text-slate-500 hover:bg-slate-50'
                     }`}
                   >
                     {mode}
                   </button>
                 ))}
               </div>
-            </div>
-            <Button variant="ghost" size="sm" className="font-bold text-xs uppercase tracking-widest text-indigo-600 hover:text-indigo-700" onClick={onViewAll}>
-              Full Ledger
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            {filteredTransactions.length > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {filteredTransactions.slice(0, 5).map((t: Transaction) => (
-                  <div key={t.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-all duration-300 group">
-                    <div className="flex items-center space-x-5">
-                      <div
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg transform group-hover:scale-110 transition-transform duration-500"
-                        style={{ backgroundColor: getCategoryColor(t.category) }}>
-                        {t.category.charAt(0)}
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="font-extrabold text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">{t.title}</p>
-                        <div className="flex items-center text-[10px] font-bold text-slate-400 space-x-2 tracking-widest uppercase">
-                          <span className="text-slate-800">{t.category}</span>
-                          <span>•</span>
-                          <span className="px-1.5 py-0.5 rounded-md border bg-slate-50 text-slate-500 border-slate-100 font-black">
-                            QTY: {t.quantity || 1}
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <th className="p-6">Transaction</th>
+                      <th className="p-6">Category</th>
+                      <th className="p-6 text-right">Amount</th>
+                      <th className="p-6 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredTransactions.map((t) => (
+                      <tr key={t.id} className="group hover:bg-slate-50/80 transition-all duration-300">
+                        <td className="p-6">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg ${t.paymentMode === 'UPI' ? 'bg-indigo-600' : 'bg-emerald-600'}`}>
+                              {t.paymentMode === 'UPI' ? <SmartphoneIcon className="w-5 h-5" /> : <BanknoteIcon className="w-5 h-5" />}
+                            </div>
+                            <div>
+                               <p className="text-sm font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{t.title}</p>
+                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.date}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-6">
+                          <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">
+                             {t.category}
                           </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-5">
-                      <div className="text-right flex flex-col items-end">
-                        <span className="font-black text-lg text-slate-900 tracking-tighter">-{formatCurrency(t.amount)}</span>
-                        <span className={`text-[9px] font-black uppercase tracking-widest ${t.paymentMode === 'UPI' ? 'text-indigo-400' : 'text-emerald-400'}`}>
-                          {t.paymentMode} Flow
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-2 group-hover:translate-x-0">
-                        <button onClick={() => onEdit(t)} className="p-1.5 text-slate-300 hover:text-indigo-600 transition-colors"><Edit2Icon className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => { if (window.confirm('Delete entry?')) onDelete(t.id); }} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash2Icon className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                        </td>
+                        <td className="p-6 text-right">
+                          <span className="text-sm font-black text-slate-900">{formatCurrency(t.amount)}</span>
+                        </td>
+                        <td className="p-6 text-right">
+                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => onEdit(t)} className="p-2.5 rounded-xl hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-all">
+                              <Edit2Icon className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => onDelete(t.id)} className="p-2.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all">
+                              <Trash2Icon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ) : (
-              <div className="p-20 text-center flex flex-col items-center justify-center h-full">
-                <div className="w-16 h-16 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4"><ReceiptIcon className="w-8 h-8 text-slate-200" /></div>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No matching operations recorded</p>
+              <div className="p-6 bg-slate-50/50 border-t border-slate-100 text-center">
+                <Button variant="secondary" size="sm" onClick={onViewAll} className="rounded-xl border-slate-200 uppercase tracking-widest text-[9px] font-black px-6">
+                  Access Complete Ledger
+                </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* BOTTOM SMART INSIGHTS PANEL */}
-      <Card className="glass-card border-none shadow-2xl p-8">
-        <div className="flex flex-row items-center justify-between mb-8">
-          <div className="space-y-1">
-            <CardTitle className="text-xl font-black tracking-tight">Intelligence Feed</CardTitle>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Algorithmic financial insights</p>
-          </div>
-          <Button variant="ghost" size="sm" className="font-bold text-xs uppercase tracking-widest text-indigo-600" onClick={onViewInsights}>
-            Full Analysis
-          </Button>
+            </CardContent>
+          </Card>
         </div>
-        <SmartInsights
-            allTransactions={allTransactions}
-            allBudgets={allBudgets}
-            currentMonth={currentMonth}
-            maxInsights={4}
-          />
-      </Card>
+
+        <div className="lg:col-span-4 flex flex-col gap-8">
+           <SmartInsights allTransactions={allTransactions} allBudgets={allBudgets} currentMonth={currentMonth} />
+           <Card className="flex-1 glass-card border-none shadow-2xl p-8 bg-slate-900 text-white overflow-hidden relative group">
+              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-500/20 blur-[80px] rounded-full group-hover:bg-indigo-500/30 transition-colors" />
+              <div className="relative z-10 space-y-6">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black tracking-tight">Manual Audit Discrepancy</h3>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Logged balance mismatches requiring manual reconciliation</p>
+                </div>
+                <div className="pt-2">
+                   <Button onClick={() => onAddMissingAmount(0, 'Cash')} className="w-full h-14 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 gap-2">
+                       <PlusIcon className="w-5 h-5" />
+                       <span className="font-black text-xs uppercase tracking-widest">Report Missing Amount</span>
+                   </Button>
+                </div>
+              </div>
+           </Card>
+        </div>
+      </div>
     </div>
   );
 }
