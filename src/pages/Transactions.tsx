@@ -42,6 +42,7 @@ export function Transactions({
 }: TransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [modeFilter, setModeFilter] = useState<'all' | 'UPI' | 'Cash'>('all');
   const [importPreviewData, setImportPreviewData] = useState<Omit<Transaction, 'id' | 'createdAt' | 'userId'>[]>([]);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   
@@ -128,18 +129,27 @@ export function Transactions({
       const matchesSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (t.notes && t.notes.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory = categoryFilter ? t.category === categoryFilter : true;
+      const matchesMode = modeFilter === 'all' ? true : (t.paymentMode === modeFilter || (modeFilter === 'Cash' && !t.paymentMode));
       const matchesDateRange = isDateInRange(t.date);
       const matchesAmountRange = 
         (!minAmount || t.amount >= parseFloat(minAmount)) &&
         (!maxAmount || t.amount <= parseFloat(maxAmount));
       
-      return matchesSearch && matchesCategory && matchesDateRange && matchesAmountRange;
+      return matchesSearch && matchesCategory && matchesMode && matchesDateRange && matchesAmountRange;
     });
 
     filtered.sort((a, b) => {
       let comparison = 0;
       switch (sortBy) {
-        case 'date': comparison = new Date(a.date).getTime() - new Date(b.date).getTime(); break;
+        case 'date': {
+          comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+          if (comparison === 0) {
+            const timeA = (a.createdAt as any)?.seconds || 0;
+            const timeB = (b.createdAt as any)?.seconds || 0;
+            comparison = timeA - timeB;
+          }
+          break;
+        }
         case 'amount': comparison = a.amount - b.amount; break;
         case 'title': comparison = a.title.localeCompare(b.title); break;
       }
@@ -147,11 +157,12 @@ export function Transactions({
     });
 
     return filtered;
-  }, [transactions, searchTerm, categoryFilter, dateRangeFilter, customStartDate, customEndDate, minAmount, maxAmount, sortBy, sortOrder]);
+  }, [transactions, searchTerm, categoryFilter, modeFilter, dateRangeFilter, customStartDate, customEndDate, minAmount, maxAmount, sortBy, sortOrder]);
 
   const clearAllFilters = () => {
     setSearchTerm('');
     setCategoryFilter('');
+    setModeFilter('all');
     setDateRangeFilter('all');
     setCustomStartDate('');
     setCustomEndDate('');
@@ -161,13 +172,13 @@ export function Transactions({
     setSortOrder('desc');
   };
 
-  const hasActiveFilters = searchTerm || categoryFilter || dateRangeFilter !== 'all' || 
+  const hasActiveFilters = searchTerm || categoryFilter || modeFilter !== 'all' || dateRangeFilter !== 'all' || 
     customStartDate || customEndDate || minAmount || maxAmount || 
     (sortBy !== 'date') || (sortOrder !== 'desc');
 
   const currentMonthKey = getCurrentMonthKey();
   const { monthlyUpiTotal, monthlyCashTotal } = useMemo(() => {
-    const monthlyTxns = transactions.filter(t => t.date.startsWith(currentMonthKey));
+    const monthlyTxns = transactions.filter(t => t.date.startsWith(currentMonthKey) && !t.title.toLowerCase().includes('missing amount'));
     const upi = monthlyTxns.filter(t => t.paymentMode === 'UPI').reduce((s, t) => s + (Number(t.amount) || 0), 0);
     const cash = monthlyTxns.filter(t => t.paymentMode === 'Cash' || !t.paymentMode).reduce((s, t) => s + (Number(t.amount) || 0), 0);
     return { monthlyUpiTotal: upi, monthlyCashTotal: cash };
@@ -304,6 +315,17 @@ export function Transactions({
                   options={[
                     { value: '', label: 'All Categories' },
                     ...categories.map((c) => ({ value: c, label: c }))
+                  ]}
+                />
+              </div>
+              <div className="w-full sm:w-40">
+                <Select
+                  value={modeFilter}
+                  onChange={(e) => setModeFilter(e.target.value as any)}
+                  options={[
+                    { value: 'all', label: 'All Modes' },
+                    { value: 'UPI', label: 'UPI' },
+                    { value: 'Cash', label: 'Cash' }
                   ]}
                 />
               </div>

@@ -3,16 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import {
   PlusIcon,
-  PieChart as PieChartIcon,
   CalendarIcon,
   ZapIcon,
   ActivityIcon,
   TargetIcon,
   WalletIcon,
-  ReceiptIcon,
   Edit2Icon,
   Trash2Icon,
-  ArrowRightIcon,
   SmartphoneIcon,
   BanknoteIcon,
   DownloadIcon
@@ -50,16 +47,16 @@ interface DashboardProps {
   recentTransactions: Transaction[];
   onAddExpense: () => void;
   onViewAll: () => void;
-  onViewInsights?: () => void;
   onEdit: (t: Transaction) => void;
   onDelete: (id: string) => void;
   allBudgets: Record<string, MonthlyBudget>;
   currentMonth: string;
   upiBudget: number;
   cashBudget: number;
-  upiRemaining: number;
+   upiRemaining: number;
   cashRemaining: number;
   onAddMissingAmount: (amount: number, mode: 'UPI' | 'Cash', notes?: string) => Promise<void>;
+  onUpdateBudget: (month: string, budget: number, upiBudget?: number, cashBudget?: number, reason?: string) => Promise<void>;
   allTransactions: Transaction[];
   totalMissing: number;
   todayMissing: number;
@@ -75,7 +72,6 @@ export function Dashboard({
   recentTransactions,
   onAddExpense,
   onViewAll,
-  onViewInsights,
   onEdit,
   onDelete,
   allTransactions,
@@ -86,6 +82,7 @@ export function Dashboard({
   upiRemaining,
   cashRemaining,
   onAddMissingAmount,
+  onUpdateBudget,
   totalMissing,
   todayMissing: _todayMissing
 }: DashboardProps) {
@@ -161,8 +158,22 @@ export function Dashboard({
           <div className="relative z-10 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Flow</span>
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-100 transition-colors">
-                <ActivityIcon className="w-4 h-4" />
+              <div className="flex items-center gap-2">
+                {Math.abs(upiBudget + cashBudget - totalBudget) > 0.01 && (
+                  <button 
+                    onClick={() => {
+                      if (confirm("Pool allocations don't match Total Budget. Reconcile now? (Extra funds will move to Cash Pool)")) {
+                        onUpdateBudget(currentMonth, totalBudget, upiBudget, totalBudget - upiBudget, 'Dashboard reconcile');
+                      }
+                    }}
+                    className="flex items-center gap-1 text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md hover:bg-rose-100 transition-colors uppercase animate-pulse"
+                  >
+                    Allocations Mismatch
+                  </button>
+                )}
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-100 transition-colors">
+                  <ActivityIcon className="w-4 h-4" />
+                </div>
               </div>
             </div>
             <div className="space-y-1">
@@ -170,15 +181,15 @@ export function Dashboard({
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{spentPercentage.toFixed(0)}% Utilized</p>
             </div>
             <div className="flex items-center gap-3 pt-3 border-t border-slate-100/50">
-              <div className="flex flex-col">
-                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter">UPI (S/R)</span>
+              <div className="flex flex-col flex-1">
+                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter">UPI Pool (S/R)</span>
                 <span className="text-[11px] font-black text-indigo-600 leading-none">
                   {formatCurrency(upiSpent)} / <span className={upiRemaining < 0 ? 'text-rose-500' : 'text-slate-400'}>{formatCurrency(upiRemaining)}</span>
                 </span>
               </div>
               <div className="w-px h-5 bg-slate-100" />
-              <div className="flex flex-col">
-                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">CASH (S/R)</span>
+              <div className="flex flex-col flex-1">
+                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">Cash Pool (S/R)</span>
                 <span className="text-[11px] font-black text-emerald-600 leading-none">
                   {formatCurrency(cashSpent)} / <span className={cashRemaining < 0 ? 'text-rose-500' : 'text-slate-400'}>{formatCurrency(cashRemaining)}</span>
                 </span>
@@ -187,16 +198,21 @@ export function Dashboard({
           </div>
         </Card>
 
-        {/* Free Capital */}
+        {/* Free Capital (Available Liquidity) */}
         <Card className="glass-card glow-on-hover p-6 relative overflow-hidden bg-white/50 group">
           <div className="relative z-10 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Free Capital</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Remaining</span>
               <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-emerald-50 group-hover:text-emerald-400 transition-colors">
                 <WalletIcon className="w-4 h-4" />
               </div>
             </div>
-            <span className={`text-3xl font-black tracking-tighter block ${remainingBalance < 0 ? 'text-rose-500' : 'text-slate-900'}`}>{formatCurrency(Math.max(0, remainingBalance))}</span>
+            <div className="space-y-1">
+              <span className={`text-3xl font-black tracking-tighter block ${remainingBalance < 0 ? 'text-rose-500' : 'text-slate-900'}`}>
+                {formatCurrency(remainingBalance)}
+              </span>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Net Available Funds</p>
+            </div>
           </div>
         </Card>
 
@@ -214,10 +230,10 @@ export function Dashboard({
         </Card>
 
         {/* Discrepancy */}
-        <Card className="glass-card glow-on-hover p-6 relative overflow-hidden bg-white/50 group">
+    <Card className="glass-card glow-on-hover p-6 relative overflow-hidden bg-white/50 group">
           <div className="relative z-10 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Discrepancy</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audit Discrepancy</span>
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${totalMissing > 0 ? 'bg-rose-50 text-rose-400' : 'bg-slate-50 text-slate-300 group-hover:bg-rose-50 group-hover:text-rose-400'}`}>
                 <TargetIcon className="w-4 h-4" />
               </div>
@@ -348,20 +364,37 @@ export function Dashboard({
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Recent operational activity</p>
               </div>
               
-              <div className="flex rounded-xl overflow-hidden border border-slate-200">
-                {(['all', 'UPI', 'Cash'] as const).map(mode => (
-                  <button
-                    key={mode}
-                    onClick={() => setTransactionModeFilter(mode)}
-                    className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                      transactionModeFilter === mode
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-white text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  className="rounded-xl border-rose-100 text-rose-500 hover:bg-rose-50 text-[9px] font-black uppercase tracking-widest h-9"
+                  onClick={() => {
+                    const amt = prompt("Enter missing amount:");
+                    if (amt && !isNaN(parseFloat(amt))) {
+                      const mode = confirm("Is this UPI missing? (OK for UPI, Cancel for Cash)") ? 'UPI' : 'Cash';
+                      onAddMissingAmount(parseFloat(amt), mode);
+                    }
+                  }}
+                >
+                  Report Discrepancy
+                </Button>
+                
+                <div className="flex rounded-xl overflow-hidden border border-slate-200">
+                  {(['all', 'UPI', 'Cash'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setTransactionModeFilter(mode)}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                        transactionModeFilter === mode
+                          ? 'bg-slate-900 text-white'
+                          : 'bg-white text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -430,12 +463,21 @@ export function Dashboard({
                   <h3 className="text-xl font-black tracking-tight">Manual Audit Discrepancy</h3>
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Logged balance mismatches requiring manual reconciliation</p>
                 </div>
-                <div className="pt-2">
-                   <Button onClick={() => onAddMissingAmount(0, 'Cash')} className="w-full h-14 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 gap-2">
-                       <PlusIcon className="w-5 h-5" />
-                       <span className="font-black text-xs uppercase tracking-widest">Report Missing Amount</span>
-                   </Button>
-                </div>
+                 <div className="pt-2">
+                    <Button 
+                      onClick={() => {
+                        const amt = prompt("Enter missing amount:");
+                        if (amt && !isNaN(parseFloat(amt))) {
+                          const mode = confirm("Is this UPI missing? (OK for UPI, Cancel for Cash)") ? 'UPI' : 'Cash';
+                          onAddMissingAmount(parseFloat(amt), mode, "Manual discrepancy report");
+                        }
+                      }} 
+                      className="w-full h-14 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 gap-2"
+                    >
+                        <PlusIcon className="w-5 h-5" />
+                        <span className="font-black text-xs uppercase tracking-widest">Report Missing Amount</span>
+                    </Button>
+                 </div>
               </div>
            </Card>
         </div>

@@ -126,23 +126,30 @@ function AppContent() {
               upiSpent={upiSpent}
               cashSpent={cashSpent}
               todaySpent={todaySpent}
-              recentTransactions={currentMonthTransactions.slice(-5).reverse()}
+              recentTransactions={[...currentMonthTransactions].sort((a, b) => {
+                const dateCompare = b.date.localeCompare(a.date);
+                if (dateCompare !== 0) return dateCompare;
+                // Secondary sort by createdAt if both have it
+                const timeA = (a.createdAt as any)?.seconds || 0;
+                const timeB = (b.createdAt as any)?.seconds || 0;
+                return timeB - timeA;
+              }).slice(0, 5)}
               onAddExpense={() => setIsAddModalOpen(true)}
               onViewAll={() => setCurrentTab('transactions')}
-              onViewInsights={() => setCurrentTab('insights')}
               onEdit={(t) => {
                 setEditingTransaction(t);
                 setIsAddModalOpen(true);
               }}
               onDelete={deleteTransaction}
-              allTransactions={state.transactions}
               allBudgets={state.budgets}
               currentMonth={currentMonth}
-              upiBudget={upiBudget}
-              cashBudget={cashBudget}
               upiRemaining={upiRemaining}
               cashRemaining={cashRemaining}
               onAddMissingAmount={addMissingAmount}
+              onUpdateBudget={updateBudget}
+              allTransactions={state.transactions}
+              upiBudget={upiBudget}
+              cashBudget={cashBudget}
               totalMissing={totalMissing}
               todayMissing={todayMissing}
             />

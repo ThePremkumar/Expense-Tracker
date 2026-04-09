@@ -57,7 +57,7 @@ export const calculateDailyAverage = (transactions: Transaction[], totalSpent: n
  */
 export const getPaymentModeBreakdown = (transactions: Transaction[]) => {
   const upiTransactions = transactions.filter(t => t.paymentMode === 'UPI');
-  const cashTransactions = transactions.filter(t => t.paymentMode === 'Cash');
+  const cashTransactions = transactions.filter(t => t.paymentMode === 'Cash' || !t.paymentMode);
   
   const upiSpent = upiTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const cashSpent = cashTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -79,7 +79,7 @@ export const getTodaySpendingByMode = (transactions: Transaction[]) => {
   
   const total = todayTxns.reduce((s, t) => s + (Number(t.amount) || 0), 0);
   const upi = todayTxns.filter(t => t.paymentMode === 'UPI').reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const cash = todayTxns.filter(t => t.paymentMode === 'Cash').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const cash = todayTxns.filter(t => t.paymentMode === 'Cash' || !t.paymentMode).reduce((s, t) => s + (Number(t.amount) || 0), 0);
   
   return { total, upi, cash };
 };

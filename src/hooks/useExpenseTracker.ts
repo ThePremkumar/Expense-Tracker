@@ -178,8 +178,9 @@ export function useExpenseTracker() {
       [month]: {
         ...(existing || { month, totalBudget: 0, history: [], carryForward: 0, carryForwardToSavings: 0 }),
         totalBudget: budget,
-        upiBudget: upiBudget !== undefined ? upiBudget : (existing?.upiBudget || budget / 2),
-        cashBudget: cashBudget !== undefined ? cashBudget : (existing?.cashBudget || budget / 2),
+        upiBudget: upiBudget !== undefined ? upiBudget : (existing?.upiBudget ?? budget / 2),
+        // If cashBudget is not provided, it should absorb the remainder of the total budget to ensure reflection in pools
+        cashBudget: cashBudget !== undefined ? cashBudget : (budget - (upiBudget !== undefined ? upiBudget : (existing?.upiBudget ?? budget / 2))),
         history: existing ? [...existing.history, newHistoryEntry] : [newHistoryEntry],
       }
     };

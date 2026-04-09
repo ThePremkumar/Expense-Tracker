@@ -23,10 +23,9 @@ export function useFinanceLogic({ state, currentMonth }: FinanceMetricsProps) {
   }, [state.transactions, currentMonth]);
 
   // Breakdown by payment mode - CALC FIRST to avoid initialization errors
-  const { upiSpent, cashSpent } = useMemo(() => 
-    getPaymentModeBreakdown(currentMonthTransactions),
-    [currentMonthTransactions]
-  );
+  const { upiSpent, cashSpent } = useMemo(() => {
+    return getPaymentModeBreakdown(currentMonthTransactions);
+  }, [currentMonthTransactions]);
 
   const totalMissing = useMemo(() => {
     return currentMonthTransactions
@@ -36,7 +35,6 @@ export function useFinanceLogic({ state, currentMonth }: FinanceMetricsProps) {
 
   const totalSpent = useMemo(() => {
     return currentMonthTransactions
-      .filter(t => !t.title.toLowerCase().includes('missing amount'))
       .reduce((sum: number, t: Transaction) => sum + (Number(t.amount) || 0), 0);
   }, [currentMonthTransactions]);
 
@@ -44,7 +42,7 @@ export function useFinanceLogic({ state, currentMonth }: FinanceMetricsProps) {
   const upiBudget = state.budgets[currentMonth]?.upiBudget || 0;
   const cashBudget = state.budgets[currentMonth]?.cashBudget || 0;
   
-  const remainingBalance = currentBudget - (totalSpent + totalMissing);
+  const remainingBalance = currentBudget - totalSpent;
   const upiRemaining = upiBudget - upiSpent;
   const cashRemaining = cashBudget - cashSpent;
 

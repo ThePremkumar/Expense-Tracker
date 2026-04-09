@@ -36,27 +36,29 @@ export function BudgetAudit({ state, allTransactions, onUpdateMissingAmount }: B
       const monthTransactions = allTransactions.filter(t => t.date.startsWith(month));
       
       const totalBudget = budget?.totalBudget || 0;
-      const totalSpent = monthTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
       
-      // Calculate Missing Amount from transactions (fallback)
-      const computedMissing = monthTransactions
+      // Separate Missing Amount from regular transactions
+      const missingAmount = monthTransactions
         .filter(t => t.title.toLowerCase().includes('missing amount'))
         .reduce((sum, t) => sum + Number(t.amount), 0);
       
-      // Use override if set, otherwise use computed value
-      const missingAmount = budget?.missingAmountOverride !== undefined 
-        ? budget.missingAmountOverride 
-        : computedMissing;
+      // Operational spent is everything else
+      const operationalSpent = monthTransactions
+        .filter(t => !t.title.toLowerCase().includes('missing amount'))
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      
+      const totalSpent = operationalSpent + missingAmount;
       
       const savings = budget?.carryForwardToSavings || 0;
       const carryForward = budget?.carryForward || 0;
       
-      const remaining = totalBudget - totalSpent;
-      const efficiency = totalBudget > 0 ? ((totalSpent / totalBudget) * 100).toFixed(1) : '0';
+      const remaining = totalBudget - (operationalSpent + missingAmount);
+      const efficiency = totalBudget > 0 ? ((operationalSpent / totalBudget) * 100).toFixed(1) : '0';
 
       return {
         month,
         totalBudget,
+        operationalSpent,
         totalSpent,
         missingAmount,
         savings,
@@ -120,9 +122,9 @@ export function BudgetAudit({ state, allTransactions, onUpdateMissingAmount }: B
               <thead>
                 <tr className="bg-white text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                   <th className="p-8">Month Cycle</th>
-                  <th className="p-8">Total Budget</th>
-                  <th className="p-8">Net Spent</th>
-                  <th className="p-8 text-rose-500">Missing Amount</th>
+                   <th className="p-8">Total Budget</th>
+                  <th className="p-8">Op. Spent</th>
+                   <th className="p-8 text-rose-500">Missing</th>
                   <th className="p-8 text-emerald-500">Savings Flow</th>
                   <th className="p-8 text-sky-500">Carry Forward (S/F)</th>
                   <th className="p-8 text-right">Efficiency %</th>
@@ -142,8 +144,8 @@ export function BudgetAudit({ state, allTransactions, onUpdateMissingAmount }: B
                     <td className="p-8 font-bold text-slate-700">{formatCurrency(row.totalBudget)}</td>
                     <td className="p-8">
                       <div className="flex flex-col">
-                        <span className="text-base font-black text-slate-900">{formatCurrency(row.totalSpent)}</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Validated Cycle</span>
+                        <span className="text-base font-black text-slate-900">{formatCurrency(row.operationalSpent)}</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Operational Outflow</span>
                       </div>
                     </td>
                     <td className="p-8">
