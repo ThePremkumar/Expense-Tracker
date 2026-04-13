@@ -101,15 +101,20 @@ export function Dashboard({
 
   const cumulativeData = useMemo(() => {
     let cumulativeSpent = 0;
+    let upiCumulativeSpent = 0;
+    let cashCumulativeSpent = 0;
     return dailyData.map(d => {
       cumulativeSpent += d.amount;
+      upiCumulativeSpent += (d as any).upiAmount || 0;
+      cashCumulativeSpent += (d as any).cashAmount || 0;
       return {
         date: d.date,
         spent: cumulativeSpent,
-        remaining: Math.max(0, totalBudget - cumulativeSpent)
+        upiRemaining: Math.max(0, upiBudget - upiCumulativeSpent),
+        cashRemaining: Math.max(0, cashBudget - cashCumulativeSpent)
       };
     });
-  }, [dailyData, totalBudget]);
+  }, [dailyData, upiBudget, cashBudget]);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-1000 slide-in-from-bottom-4">
@@ -257,8 +262,12 @@ export function Dashboard({
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Spent</span>
               </div>
               <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-violet-500" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">UPI Balance</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Balance</span>
               </div>
             </div>
           </CardHeader>
@@ -271,7 +280,11 @@ export function Dashboard({
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                     </linearGradient>
-                    <linearGradient id="colorRemaining" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorUPIRemaining" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorCashRemaining" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
@@ -286,12 +299,16 @@ export function Dashboard({
                           <p className="text-[10px] font-black uppercase text-slate-400 mb-2">{payload[0].payload.date}</p>
                           <div className="space-y-1">
                             <p className="text-sm font-black flex justify-between gap-8 text-indigo-400">
-                               <span>SPENT</span>
+                               <span>TOTAL SPENT</span>
                                <span>{formatCurrency(payload[0].value as number)}</span>
                             </p>
-                            <p className="text-sm font-black flex justify-between gap-8 text-emerald-400">
-                               <span>BALANCE</span>
+                            <p className="text-sm font-black flex justify-between gap-8 text-violet-400">
+                               <span>UPI BALANCE</span>
                                <span>{formatCurrency(payload[1].value as number)}</span>
+                            </p>
+                            <p className="text-sm font-black flex justify-between gap-8 text-emerald-400">
+                               <span>CASH BALANCE</span>
+                               <span>{formatCurrency(payload[2].value as number)}</span>
                             </p>
                           </div>
                         </div>
@@ -300,7 +317,8 @@ export function Dashboard({
                     return null;
                   }} />
                   <Area type="monotone" dataKey="spent" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorSpent)" />
-                  <Area type="monotone" dataKey="remaining" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorRemaining)" />
+                  <Area type="monotone" dataKey="upiRemaining" stroke="#8b5cf6" strokeWidth={4} fillOpacity={1} fill="url(#colorUPIRemaining)" />
+                  <Area type="monotone" dataKey="cashRemaining" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorCashRemaining)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

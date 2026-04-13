@@ -90,14 +90,22 @@ export const groupTransactionsByCategory = (transactions: Transaction[]) => {
 export const groupTransactionsByDate = (transactions: Transaction[]) => {
   const grouped = transactions.reduce(
     (acc, curr) => {
-      acc[curr.date] = (acc[curr.date] || 0) + curr.amount;
+      if (!acc[curr.date]) {
+        acc[curr.date] = { amount: 0, upiAmount: 0, cashAmount: 0 };
+      }
+      acc[curr.date].amount += curr.amount;
+      if (curr.paymentMode === 'UPI') {
+        acc[curr.date].upiAmount += curr.amount;
+      } else {
+        acc[curr.date].cashAmount += curr.amount;
+      }
       return acc;
     },
-    {} as Record<string, number>
+    {} as Record<string, { amount: number; upiAmount: number; cashAmount: number }>
   );
 
   return Object.entries(grouped).
-  map(([date, amount]) => ({ date, amount })).
+  map(([date, data]) => ({ date, ...data })).
   sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
 
