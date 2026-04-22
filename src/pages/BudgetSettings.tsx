@@ -580,7 +580,7 @@ export function BudgetSettings({
                    <div key={c} className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-2 text-sm text-indigo-700 font-medium group">
                      {c}
                      <button 
-                       onClick={() => onDeleteCategory?.(c)}
+                       onClick={() => { if (window.confirm(`Are you sure you want to delete the category "${c}"?`)) onDeleteCategory?.(c); }}
                        className="text-indigo-300 hover:text-rose-500 transition-colors"
                      >
                        <Trash2Icon className="w-3 h-3" />

@@ -453,7 +453,7 @@ export function Dashboard({
                             <button onClick={() => onEdit(t)} className="p-2.5 rounded-xl hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-all">
                               <Edit2Icon className="w-4 h-4" />
                             </button>
-                            <button onClick={() => onDelete(t.id)} className="p-2.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all">
+                            <button onClick={() => { if (window.confirm('Are you sure you want to delete this transaction?')) onDelete(t.id); }} className="p-2.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all">
                               <Trash2Icon className="w-4 h-4" />
                             </button>
                           </div>
