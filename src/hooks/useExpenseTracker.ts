@@ -164,7 +164,7 @@ export function useExpenseTracker() {
     }
   };
 
-  const updateBudget = async (month: string, budget: number, upiBudget?: number, cashBudget?: number, reason: string = 'Budget update') => {
+  const updateBudget = async (month: string, budget: number, upiBudget?: number, cashBudget?: number, reason = 'Budget update') => {
     const existing = state.budgets[month];
     const newHistoryEntry = {
       date: new Date().toISOString(),
@@ -221,7 +221,7 @@ export function useExpenseTracker() {
     toast.success(`Transferred ₹${amount} from ${from} to ${from === 'Cash' ? 'UPI' : 'Cash'}`);
   };
 
-  const addMissingAmount = async (amount: number, mode: 'UPI' | 'Cash', notes: string = '') => {
+  const addMissingAmount = async (amount: number, mode: 'UPI' | 'Cash', notes = '') => {
     await addTransaction({
       title: 'Missing Amount (Discrepancy)',
       amount,
@@ -323,7 +323,7 @@ export function useExpenseTracker() {
   };
 
   // FAMILY WALLET ACTIONS
-  const addFamilyMember = async (name: string, initialBalance: number = 0) => {
+  const addFamilyMember = async (name: string, initialBalance = 0) => {
     const newMember: FamilyMember = {
       id: crypto.randomUUID(),
       name: name.trim(),
@@ -346,7 +346,7 @@ export function useExpenseTracker() {
     await syncUserProfile({ familyMembers: updatedMembers });
   };
 
-  const modifyFamilyMemberAmount = async (id: string, amount: number, type: 'deposit' | 'withdraw', description: string = '', date?: string, mode?: string, notes?: string) => {
+  const modifyFamilyMemberAmount = async (id: string, amount: number, type: 'deposit' | 'withdraw', description = '', date?: string, mode?: string, notes?: string) => {
     const updated = state.familyMembers.map(m => {
       if (m.id !== id) return m;
       const newBalance = type === 'deposit' ? m.balance + amount : Math.max(0, m.balance - amount);

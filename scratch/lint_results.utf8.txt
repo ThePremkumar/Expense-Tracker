@@ -1,0 +1,100 @@
+
+File: firebase\functions\index.js
+  [ERROR] Line 1:19 - Require statement not part of import statement. (@typescript-eslint/no-var-requires)
+  [ERROR] Line 1:19 - 'require' is not defined. (no-undef)
+  [ERROR] Line 2:15 - Require statement not part of import statement. (@typescript-eslint/no-var-requires)
+  [ERROR] Line 2:15 - 'require' is not defined. (no-undef)
+  [ERROR] Line 8:1 - 'exports' is not defined. (no-undef)
+  [ERROR] Line 42:1 - 'exports' is not defined. (no-undef)
+  [WARN] Line 44:30 - 'context' is defined but never used. (@typescript-eslint/no-unused-vars)
+  [ERROR] Line 74:1 - 'exports' is not defined. (no-undef)
+  [WARN] Line 74:106 - 'context' is defined but never used. (@typescript-eslint/no-unused-vars)
+  [ERROR] Line 86:1 - 'exports' is not defined. (no-undef)
+  [WARN] Line 86:100 - 'context' is defined but never used. (@typescript-eslint/no-unused-vars)
+
+File: scratch\show_errors.js
+  [ERROR] Line 1:12 - Require statement not part of import statement. (@typescript-eslint/no-var-requires)
+  [ERROR] Line 1:12 - 'require' is not defined. (no-undef)
+  [ERROR] Line 2:14 - Require statement not part of import statement. (@typescript-eslint/no-var-requires)
+  [ERROR] Line 2:14 - 'require' is not defined. (no-undef)
+  [ERROR] Line 8:40 - 'process' is not defined. (no-undef)
+
+File: src\App.tsx
+  [WARN] Line 83:42 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 133:47 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 134:47 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\components\Sidebar.tsx
+  [WARN] Line 22:22 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\context\AuthContext.tsx
+  [WARN] Line 18:55 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 19:30 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 20:25 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 21:45 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 26:17 - Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components. (react-refresh/only-export-components)
+
+File: src\hooks\useAppState.ts
+  [WARN] Line 54:45 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\hooks\useExpenseTracker.ts
+  [WARN] Line 49:51 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 54:21 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 77:21 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 118:21 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 126:17 - '_id' is assigned a value but never used. (@typescript-eslint/no-unused-vars)
+  [WARN] Line 126:30 - '_uid' is assigned a value but never used. (@typescript-eslint/no-unused-vars)
+  [WARN] Line 126:67 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 132:21 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 156:21 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 428:24 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 430:21 - '_id' is assigned a value but never used. (@typescript-eslint/no-unused-vars)
+
+File: src\index.tsx
+  [WARN] Line 7:25 - Forbidden non-null assertion. (@typescript-eslint/no-non-null-assertion)
+
+File: src\pages\BudgetSettings.tsx
+  [WARN] Line 680:70 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\pages\Dashboard.tsx
+  [WARN] Line 87:17 - '_todayMissing' is defined but never used. (@typescript-eslint/no-unused-vars)
+  [WARN] Line 108:35 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 109:36 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\pages\ForgotPassword.tsx
+  [WARN] Line 21:19 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\pages\Insights.tsx
+  [WARN] Line 24:17 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 204:29 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\pages\Login.tsx
+  [WARN] Line 24:19 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 37:19 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\pages\Signup.tsx
+  [WARN] Line 7:54 - 'WalletIcon' is defined but never used. (@typescript-eslint/no-unused-vars)
+  [WARN] Line 35:19 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\pages\Transactions.tsx
+  [WARN] Line 78:21 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 93:19 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 147:43 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 148:43 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 160:6 - React Hook useMemo has a missing dependency: 'isDateInRange'. Either include it or remove the dependency array. (react-hooks/exhaustive-deps)
+  [WARN] Line 324:68 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 352:75 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 386:66 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 398:69 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\types\index.ts
+  [WARN] Line 21:14 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+  [WARN] Line 22:15 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+File: src\utils\helpers.ts
+  [WARN] Line 161:12 - '_' is assigned a value but never used. (@typescript-eslint/no-unused-vars)
+  [WARN] Line 261:31 - Unexpected any. Specify a different type. (@typescript-eslint/no-explicit-any)
+
+Total files checked: 42
+Total errors: 13
+Total warnings: 49
